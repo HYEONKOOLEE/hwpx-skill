@@ -1,0 +1,76 @@
+{
+  "skill_name": "hwpx",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "한글로 간단한 공문서를 작성해줘. 내용은 '2026년도 정보화 교육 실시 안내'이고, 일시는 2026. 3. 10.(화) 14:00~16:00, 장소는 본관 대회의실, 대상은 전 직원이야.",
+      "expected_output": "공문서 형식의 .hwpx 파일",
+      "files": [],
+      "assertions": [
+        "출력 파일이 .hwpx 확장자를 가진다",
+        "공문서 항목 기호 체계(1. 가. 1) …)를 사용한다",
+        "날짜가 '2026. 3. 10.(화)' 형식이다 (월·일 앞 0 없음)",
+        "시간이 24시각제 '14:00~16:00' 형식이다",
+        "'끝.' 표시가 포함되어 있다",
+        "fix_hwpx_namespaces 후처리가 실행되었다"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "보고서 양식으로 한글 문서를 작성해줘. 제목은 '2026년 상반기 AI 도입 현황 보고'이고, 섹션은 Ⅰ. 추진 배경, Ⅱ. 현황 분석, Ⅲ. 개선 방안 3개로 구성해줘. 보고서 템플릿을 활용해서 만들어줘.",
+      "expected_output": "보고서 형식의 .hwpx 파일 (템플릿 기반)",
+      "files": [],
+      "assertions": [
+        "assets/report-template.hwpx 템플릿을 사용한다",
+        "표지에 보고서 제목이 포함되어 있다",
+        "섹션 구분 바의 제목 텍스트가 치환되었다",
+        "본문에 □○― 기호 체계가 사용된다",
+        "fix_hwpx_namespaces 후처리가 실행되었다"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "이 한글 파일을 열어서 표지 제목을 '디지털 전환 추진 계획'으로 바꾸고, 작성일을 오늘 날짜로 변경해줘.",
+      "expected_output": "수정된 .hwpx 파일",
+      "files": [
+        "assets/report-template.hwpx"
+      ],
+      "assertions": [
+        "기존 파일을 열어서 수정하는 방식을 사용한다",
+        "replace_text_in_runs 또는 ZIP-level 치환을 사용한다",
+        "표지 제목이 변경되었다",
+        "작성일이 공문서 날짜 형식으로 변경되었다",
+        "fix_hwpx_namespaces 후처리가 실행되었다"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "첨부한 한글 칼럼 원고에 새 소단원 하나를 추가하고, 기존 본문 두 문단에 각각 두세 문장씩 덧붙여줘. 서식은 원본 그대로 유지해줘.",
+      "expected_output": "본문이 증보된 .hwpx 파일 (원본 서식 유지)",
+      "files": [],
+      "assertions": [
+        "references/edit-existing.md 절차(작업 유형 B)를 따른다",
+        "템플릿 치환이 아니라 기존 문서 편집으로 처리한다",
+        "편집 전에 paraPrIDRef/charPrIDRef를 조사해 새 단락에 재사용한다",
+        "새로 만든 <hp:p>에 linesegarray를 넣지 않는다",
+        "clear_layout_cache.py를 실행해 linesegarray 잔존이 0개다",
+        "재패키징 시 mimetype이 첫 항목이며 ZIP_STORED다",
+        "verify_hwpx.py --base 원본 검증이 PASS다",
+        "원본의 이미지 개수가 그대로 보존된다"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "이 hwpx 파일을 열어보니 일부 줄의 글씨가 서로 겹쳐서 나와. 고쳐줘.",
+      "expected_output": "겹침이 해소된 .hwpx 파일",
+      "files": [],
+      "assertions": [
+        "원인을 stale linesegarray(레이아웃 캐시)로 진단한다",
+        "셀 높이나 줄 간격을 임의로 키우는 방식으로 우회하지 않는다",
+        "clear_layout_cache.py로 캐시를 제거한다",
+        "수정 전후 본문 텍스트가 문자 단위로 동일함을 확인한다",
+        "verify_hwpx.py 검증이 PASS다"
+      ]
+    }
+  ]
+}

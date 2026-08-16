@@ -1,0 +1,16 @@
+# 파이썬
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 작업 중 생성되는 한글 문서 (배포 대상 아님)
+/*.hwpx
+/*.hwp
+!skills/hwpx/assets/*.hwpx
+!skills/hwpx/assets/*.hwp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,12 @@
+{
+  "name": "hwpx",
+  "displayName": "HWPX 한글 문서",
+  "description": "HWPX(.hwpx 한글 문서) 생성·읽기·편집·템플릿 치환 스킬. 보고서·공문·기안문 작성과 기존 한글 원고 수정을 지원한다.",
+  "version": "1.0.0",
+  "author": {
+    "name": "이현구(프랭크)"
+  },
+  "homepage": "https://github.com/HYEONKOOLEE/hwpx-skills",
+  "repository": "https://github.com/HYEONKOOLEE/hwpx-skills",
+  "keywords": ["hwpx", "hwp", "한글", "korean", "document", "report", "공문"]
+}

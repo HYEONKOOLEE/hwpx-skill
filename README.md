@@ -1,0 +1,203 @@
+# hwpx-skills
+
+한컴오피스 한글의 개방형 포맷 **HWPX(.hwpx)** 문서를 AI 에이전트가 직접 만들고, 읽고,
+고치고, 양식에 내용을 채워 넣을 수 있게 해주는 스킬입니다.
+
+**클로드 코드(Claude Code) · 코워크(Cowork) · 코덱스(Codex CLI)** 세 환경에서 모두 설치할 수 있습니다.
+
+> **버전** v1.0.0 · **최종 수정** 2026-08-16
+
+---
+
+## 무엇을 할 수 있나
+
+| 하고 싶은 것 | 예시 요청 |
+|---|---|
+| 새 한글 문서 만들기 | "이 내용으로 보고서 한글 파일 만들어줘" |
+| 공문·기안문 작성 | "이 안건으로 공문 하나 써줘" |
+| 양식에 내용 채우기 | "이 hwpx 양식에 우리 회사 정보로 채워줘" |
+| **기존 원고 수정** | "이 한글 원고에서 3장 내용만 고쳐줘" |
+
+특히 **이미 완성된 원고를 고치는 작업**을 별도 절차(`skills/hwpx/references/edit-existing.md`)로
+분리해 둔 것이 이 스킬의 핵심입니다. 이 절차 없이 새로 만들듯 처리하면 원본 서식이 깨지고
+내용이 유실됩니다.
+
+---
+
+## 설치
+
+### 공통 준비 — 저장소 내려받기
+
+```bash
+git clone https://github.com/HYEONKOOLEE/hwpx-skills.git
+cd hwpx-skills
+```
+
+> 비공개(Private) 저장소입니다. 접근 권한이 없으면 저장소 소유자에게 요청하거나,
+> 배포용 파일(`dist/`)만 따로 전달받아 아래 **방법 C**로 설치하세요.
+
+---
+
+### 방법 A — 스크립트로 한 번에 (권장)
+
+세 환경 중 **클로드 코드**와 **코덱스**를 자동으로 설치합니다.
+
+**Windows (PowerShell)**
+
+```powershell
+.\install.ps1              # 클로드 코드 + 코덱스 모두
+.\install.ps1 -Target codex   # 코덱스에만
+```
+
+> 실행이 차단되면 한 번만: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+**macOS / Linux**
+
+```bash
+chmod +x install.sh
+./install.sh               # 클로드 코드 + 코덱스 모두
+./install.sh claude        # 클로드 코드에만
+```
+
+---
+
+### 방법 B — 클로드 코드 플러그인으로 설치
+
+저장소 자체가 플러그인 마켓플레이스로 구성돼 있습니다.
+스킬이 업데이트되면 `/plugin marketplace update`로 최신본을 받을 수 있어 관리가 편합니다.
+
+```
+/plugin marketplace add HYEONKOOLEE/hwpx-skills
+/plugin install hwpx@hyeonkoolee-skills
+```
+
+> 비공개 저장소라 명령을 실행하는 컴퓨터에 GitHub 인증(`gh auth login` 또는 SSH 키)이
+> 되어 있어야 합니다.
+
+---
+
+### 방법 C — 폴더 직접 복사 (수동)
+
+`skills/hwpx` 폴더를 통째로 아래 위치에 넣습니다.
+
+| 환경 | 넣을 위치 |
+|---|---|
+| **클로드 코드** | `~/.claude/skills/hwpx/` <br> Windows: `%USERPROFILE%\.claude\skills\hwpx\` |
+| **코덱스 CLI** | `~/.agents/skills/hwpx/` <br> Windows: `%USERPROFILE%\.agents\skills\hwpx\` |
+
+프로젝트 단위로만 쓰고 싶다면 각각 `.claude/skills/hwpx/`, `.agents/skills/hwpx/`에
+넣으면 해당 프로젝트에서만 동작합니다.
+
+---
+
+### 방법 D — 코워크(Cowork)
+
+코워크는 폴더 복사가 아니라 **파일 업로드** 방식입니다.
+
+1. `dist/hwpx-v1.0.0.skill` 파일을 클로드 대화창에 올립니다
+2. 나타나는 **저장** 버튼을 누릅니다
+
+끝입니다. 이후 모든 코워크 세션에서 자동으로 쓰입니다.
+
+---
+
+### 의존 패키지
+
+문서를 실제로 만들 때 아래 패키지가 필요합니다. 에이전트가 알아서 설치하지만, 막히면 직접 실행하세요.
+
+```bash
+pip install python-hwpx
+# 시스템 파이썬이 보호돼 있다면
+pip install python-hwpx --break-system-packages
+```
+
+---
+
+## 설치 확인
+
+설치 후 에이전트에게 이렇게 물어보세요.
+
+> "hwpx 스킬 설치됐어? 한글 문서 만들 수 있어?"
+
+또는 아래 표현이 나오면 스킬이 자동으로 켜집니다.
+
+> "한글 문서로 만들어줘" · "hwpx로 저장해줘" · "한글파일" · "공문 써줘" · "기안문"
+> "이 한글 원고 수정해줘" · "이 양식에 채워줘"
+
+Word(.docx)가 필요하면 이 스킬이 아니라 각 도구의 `docx` 스킬이 쓰입니다.
+
+---
+
+## 저장소 구성
+
+```
+hwpx-skills/
+├── skills/hwpx/                  ← 스킬 본체 (이 폴더 하나가 정본)
+│   ├── SKILL.md                    에이전트가 읽는 지침
+│   ├── README.md                   스킬 자체 설명서
+│   ├── CHANGELOG.md                스킬 변경 이력
+│   ├── references/                 서식 규격·편집 절차 4종
+│   ├── scripts/                    후처리·검증 스크립트 4종
+│   ├── assets/                     공공기관 표준 양식 2종
+│   └── evals/                      동작 검증 테스트 케이스
+├── dist/                         ← 코워크 업로드용 배포 파일
+│   ├── hwpx-v1.0.0.skill
+│   └── hwpx-v1.0.0.zip
+├── .claude-plugin/               ← 클로드 코드 플러그인 매니페스트
+│   ├── marketplace.json
+│   └── plugin.json
+├── install.ps1                   ← Windows 설치 스크립트
+├── install.sh                    ← macOS·Linux 설치 스크립트
+├── README.md                     ← 이 파일
+└── CHANGELOG.md                  ← 저장소 변경 이력
+```
+
+`skills/hwpx` **한 폴더가 모든 설치 경로의 원본**입니다. 스킬을 고칠 때는 여기만 수정하고,
+`dist/`의 배포 파일을 다시 만들면 됩니다.
+
+---
+
+## 꼭 알아둘 3가지
+
+1. **텍스트를 한 글자라도 바꿨으면 레이아웃 캐시를 지워야 합니다.**
+   안 지우면 한글에서 열었을 때 글자가 겹치거나 잘려 보입니다. → `scripts/clear_layout_cache.py`
+
+2. **다시 압축할 때는 `mimetype`을 무압축으로 맨 앞에 넣어야 합니다.**
+   순서나 압축 방식이 틀리면 한글이 파일을 아예 열지 못합니다.
+
+3. **전달 전 반드시 검증하세요.** → `scripts/verify_hwpx.py`
+
+세 가지 모두 `SKILL.md`에 절차가 적혀 있고, 에이전트가 자동으로 따릅니다.
+
+---
+
+## 문제가 생기면
+
+| 증상 | 확인할 것 |
+|---|---|
+| 스킬이 안 불려옴 | 폴더 위치가 맞는지 / 도구를 재시작했는지 / `SKILL.md` 맨 앞에 BOM이 붙지 않았는지 |
+| 한글에서 파일이 안 열림 | 재압축 시 `mimetype`이 맨 앞·무압축인지 |
+| 글자가 겹치거나 잘림 | 레이아웃 캐시를 지웠는지 |
+| 표가 삐뚤어짐 | `autofit_table_rows.py`를 돌렸는지 |
+| 태그 오류·파싱 실패 | `fix_namespaces.py`로 복구 시도 |
+
+> **BOM 주의** — `SKILL.md`를 Windows PowerShell의 `Out-File`이나 `>`로 저장하면 파일 앞에
+> 보이지 않는 표식(BOM)이 붙습니다. 그러면 YAML 앞머리가 통째로 인식되지 않아
+> **스킬이 아예 검색되지 않습니다.** 편집할 때는 BOM 없는 UTF-8로 저장하세요.
+
+---
+
+## 동봉 양식 관련 안내
+
+`skills/hwpx/assets/`의 두 양식은 **공공기관 보고서 서식을 익히기 위한 일반 샘플**입니다.
+특정 기관의 실제 문서가 아니며, 자리표시자(`기관명`, `제 목`, `2000. 00. 00`,
+`내용을 입력하세요` 등)로 채워져 있습니다.
+
+- `form2.hwp`의 차례 항목에 `유네스코 한국위원회 사업지원`이라는 **예시 문구**가 남아
+  있습니다. 실제 사용 시 본인 내용으로 치환하면 됩니다.
+- 소속 기관에 지정 양식이 있다면 그 파일을 `assets/`에 넣고 `SKILL.md`의 템플릿 경로만
+  바꿔 쓰는 것을 권합니다.
+
+---
+
+작성일: 2026-08-16 | 버전: v1.0.0 | 작성: 프랭크 × 에이미 협업
