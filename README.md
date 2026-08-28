@@ -1,4 +1,4 @@
-# hwpx-skills
+# hwpx-skill
 
 한컴오피스 한글의 개방형 포맷 **HWPX(.hwpx)** 문서를 AI 에이전트가 직접 만들고, 읽고,
 고치고, 양식에 내용을 채워 넣을 수 있게 해주는 스킬입니다.
@@ -29,8 +29,8 @@
 ### 공통 준비 — 저장소 내려받기
 
 ```bash
-git clone https://github.com/HYEONKOOLEE/hwpx-skills.git
-cd hwpx-skills
+git clone https://github.com/HYEONKOOLEE/hwpx-skill.git
+cd hwpx-skill
 ```
 
 > 비공개(Private) 저장소입니다. 접근 권한이 없으면 저장소 소유자에게 요청하거나,
@@ -67,7 +67,7 @@ chmod +x install.sh
 스킬이 업데이트되면 `/plugin marketplace update`로 최신본을 받을 수 있어 관리가 편합니다.
 
 ```
-/plugin marketplace add HYEONKOOLEE/hwpx-skills
+/plugin marketplace add HYEONKOOLEE/hwpx-skill
 /plugin install hwpx@hyeonkoolee-skills
 ```
 
@@ -131,7 +131,7 @@ Word(.docx)가 필요하면 이 스킬이 아니라 각 도구의 `docx` 스킬�
 ## 저장소 구성
 
 ```
-hwpx-skills/
+hwpx-skill/
 ├── skills/hwpx/                  ← 스킬 본체 (이 폴더 하나가 정본)
 │   ├── SKILL.md                    에이전트가 읽는 지침
 │   ├── README.md                   스킬 자체 설명서

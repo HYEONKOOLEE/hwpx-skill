@@ -12,7 +12,7 @@
 
 - **`skills/hwpx/`** — 스킬 정본. 모든 설치 경로가 이 한 폴더를 원본으로 삼는다.
 - **`.claude-plugin/marketplace.json` · `plugin.json`** — 클로드 코드 플러그인 마켓플레이스.
-  `/plugin marketplace add HYEONKOOLEE/hwpx-skills` 로 등록하면
+  `/plugin marketplace add HYEONKOOLEE/hwpx-skill` 로 등록하면
   이후 `/plugin marketplace update` 만으로 최신본을 받을 수 있다.
 - **`install.ps1` (Windows) · `install.sh` (macOS·Linux)** — 클로드 코드와 코덱스에
   한 번에 설치하는 스크립트. 대상 선택 인자(`all` / `claude` / `codex`)를 받는다.
