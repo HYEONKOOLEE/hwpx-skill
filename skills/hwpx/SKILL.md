@@ -1,11 +1,12 @@
 ---
 name: hwpx
-description: "HWPX(.hwpx 한글 문서) 생성·읽기·편집·템플릿 치환 스킬. '한글 문서','hwpx','한글파일','HWP 문서 생성','보고서','공문','기안문','한글로 작성','한글 원고 수정','hwpx 편집' 등의 요청에 사용. 기존 한글 원고에 내용을 추가·수정하는 작업에도 적용한다. python-hwpx로 처리하며 일반 Word(.docx)는 docx 스킬을 쓸 것."
+description: "한글 문서(.hwp / .hwpx) 생성·읽기·편집·템플릿 치환 스킬. **.hwp를 그대로 업로드해도 자동으로 .hwpx로 변환해 처리하고, 올린 형식 그대로 되돌려준다**(한컴오피스 불필요). '한글 문서','hwp','hwpx','한글파일','HWP 문서 생성','보고서','공문','기안문','한글로 작성','한글 원고 수정','hwp 편집','hwpx 편집' 등의 요청에 사용. 기존 한글 원고에 내용을 추가·수정하는 작업에도 적용한다. 누름틀(필드)이 있는 서식에 값만 채우거나 명단으로 메일머지하는 작업은 rhwp-form-fill 스킬을 쓸 것. 일반 Word(.docx)는 docx 스킬을 쓸 것."
 ---
 
 # HWPX 문서 생성·편집 스킬
 
-> **버전** v1.0 (배포판) · **최종 수정** 2026-08-16 · **변경 이력** `CHANGELOG.md`
+> **버전** v1.1 · **최종 수정** 2026-08-29 · **변경 이력** `CHANGELOG.md`
+> v1.1 변경점: **HWP 입력 게이트(0-A단계) 추가** — `.hwp`를 직접 업로드해도 처리 가능
 > 설치·사용법은 같은 폴더의 `README.md`를 먼저 보세요.
 
 ## 개요
@@ -15,10 +16,116 @@ HWPX는 한컴오피스 한글의 개방형 문서 포맷이다. 내부는 **ZIP
 ## 설치
 
 ```bash
-pip install python-hwpx --break-system-packages
+pip install python-hwpx --break-system-packages       # HWPX 처리
+npm i @rhwp/core                                       # .hwp 입력 변환용 (0-A단계에서만 필요)
 ```
 
 > 이 문서에서 `$SKILL_DIR`는 이 스킬 폴더의 실제 경로다(환경에 따라 `/mnt/skills/user/hwpx` 또는 `~/.claude/skills/hwpx`). 스크립트를 호출하기 전에 경로를 한 번 확인한다.
+
+---
+
+## ⚠️ 0-A단계: 입력 형식 게이트 — `.hwp`면 먼저 변환한다
+
+> **사용자가 `.hwp`를 올렸든 `.hwpx`를 올렸든 이 스킬은 똑같이 동작한다.**
+> 사용자에게 "hwpx로 저장해서 다시 올려달라"고 요구하지 않는다. 여기서 자동 변환한다.
+
+### 판정
+
+```bash
+ls -la ./*.hwp ./*.hwpx 2>/dev/null
+file 업로드파일.hwp          # "Hancom HWP ... version 5.0" 이면 HWP5 바이너리
+```
+
+| 업로드 형식 | 조치 |
+|---|---|
+| `.hwpx` | 변환 없이 바로 0단계(A/B 판별)로 |
+| `.hwp` (HWP5) | **아래 변환 절차 실행 → `.hwpx` 확보 후** 0단계로 |
+| `.hwp` 인데 누름틀 서식에 값만 채우는 작업 | 변환하지 말고 **rhwp-form-fill 스킬**로 전환 (rhwp는 `.hwp`를 직접 채운다) |
+| `.hml` | 위 변환기가 함께 처리한다(`to-hwpx` 동일) |
+
+### 변환기 설치 (작업 폴더에서 1회)
+
+`@rhwp/core`는 Rust+WASM 기반 HWP/HWPX 파서로, **한컴오피스 없이** HWP5 ↔ HWPX 상호 변환을 한다.
+
+```bash
+mkdir -p ./_bridge && cd ./_bridge && npm init -y >/dev/null && npm i @rhwp/core
+```
+
+### 변환 스크립트 `_bridge/hwp_bridge.mjs` (그대로 생성한다)
+
+```javascript
+#!/usr/bin/env node
+// hwp_bridge.mjs — HWP5 <-> HWPX 변환 게이트 (@rhwp/core WASM, 한컴오피스 불필요)
+//   node hwp_bridge.mjs to-hwpx <입력.hwp>  <출력.hwpx>
+//   node hwp_bridge.mjs to-hwp  <입력.hwpx> <출력.hwp>
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+
+const [, , mode, src, dst] = process.argv;
+if (!['to-hwpx', 'to-hwp'].includes(mode) || !src || !dst) {
+  console.error('usage: node hwp_bridge.mjs <to-hwpx|to-hwp> <src> <dst>');
+  process.exit(2);
+}
+
+const require = createRequire(import.meta.url);
+const pkgDir = path.dirname(require.resolve('@rhwp/core/package.json'));
+const { default: init, HwpDocument } = await import(path.join(pkgDir, 'rhwp.js'));
+await init({ module_or_path: fs.readFileSync(path.join(pkgDir, 'rhwp_bg.wasm')) });
+
+const doc = new HwpDocument(new Uint8Array(fs.readFileSync(src)));
+const exp = mode === 'to-hwpx' ? doc.exportHwpxWithReport() : doc.exportHwpWithReport();
+const loss = JSON.parse(exp.contentLoss() || '{}');
+const bytes = exp.takeBytes();
+fs.writeFileSync(dst, Buffer.from(bytes));
+
+const out = { mode, src, dst, bytes: bytes.length, contentLoss: loss };
+if (mode === 'to-hwp') out.verify = JSON.parse(doc.exportHwpVerify());   // 쪽수 보존 검증
+console.log(JSON.stringify(out, null, 2));
+
+// 손실이 보고되면 종료코드 3 — 조용히 넘어가지 않는다
+process.exit((loss.count ?? 0) > 0 ? 3 : 0);
+```
+
+### 실행
+
+```bash
+node ./_bridge/hwp_bridge.mjs to-hwpx ./원본.hwp ./work.hwpx
+python "$SKILL_DIR/scripts/verify_hwpx.py" ./work.hwpx        # 변환 직후 1차 검증
+```
+
+**판정 규칙**
+
+- `contentLoss.count: 0` → 무손실. 그대로 진행한다.
+- `contentLoss.count > 0` (종료코드 3) → `losses[]` 항목을 **사용자에게 그대로 보고**하고,
+  계속할지 물어본다. 조용히 진행하지 않는다.
+- `verify_hwpx.py`가 FAIL이면 변환 실패다. 사용자에게 "한글에서 직접 `.hwpx`로
+  저장해 다시 올려달라"고 요청한다(최후 수단).
+- `npm i`가 네트워크 문제로 실패하면 변환할 수 없다. 위와 같이 수동 저장을 요청한다.
+
+### 산출 형식 규약 — **올린 형식 그대로 되돌린다**
+
+작업이 끝나면 사용자가 올린 확장자로 맞춰 돌려준다.
+
+| 사용자가 올린 것 | 최종 전달물 | 마지막 단계 |
+|---|---|---|
+| `.hwpx` | `.hwpx` | 그대로 전달 |
+| `.hwp` | **`.hwp`** | 아래 역변환 후 전달 |
+
+```bash
+# 편집 완료본(.hwpx) → 제출용(.hwp)
+node ./_bridge/hwp_bridge.mjs to-hwp ./work.hwpx ./최종본.hwp
+```
+
+역변환 결과의 `verify` 블록에서 **`pageCountBefore == pageCountAfter`** 와
+**`recovered: true`** 를 확인한 뒤에 전달한다. 어긋나면 `.hwpx`도 함께 전달하고
+사실을 알린다.
+
+> **원본은 절대 덮어쓰지 않는다.** 업로드된 `.hwp`는 그대로 두고 `work.hwpx`,
+> `최종본.hwp` 같은 새 파일로만 작업한다.
+
+> 역변환은 HWPX→HWP 어댑터를 거치므로 **한 번 왕복하면 내부 구조가 재작성된다.**
+> 왕복은 작업당 1회로 끝낸다(변환 → 편집 → 역변환). 편집할 때마다 왕복하지 않는다.
 
 ---
 
@@ -31,6 +138,8 @@ pip install python-hwpx --break-system-packages
 | "보고서 만들어줘", "공문 써줘", "이 양식으로 채워줘" | **A. 생성 / 템플릿 치환** | 아래 「A. 템플릿 치환 워크플로」 |
 | "이 원고 수정해줘", "이 내용 추가해줘", "팩트체크 반영해줘", 완성된 hwpx를 주며 고쳐 달라 | **B. 기존 문서 편집** | **`references/edit-existing.md`를 먼저 읽을 것** |
 
+> **0-A단계를 먼저 통과했다고 전제한다** — 이 시점에서 손에 있는 파일은 반드시 `.hwpx`다.
+>
 > B를 A의 절차로 처리하면 원본 서식이 깨지고 내용이 유실된다. 사용자가 **이미 완성된 원고**를 줬다면 그것은 채울 양식이 아니라 지켜야 할 자산이다.
 
 ---
@@ -71,8 +180,8 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" out.hwpx --base 원본.hwpx
 
 ### A-1단계: 사용자 업로드 양식이 있는가?
 
-사용자가 `.hwpx` 양식 파일을 업로드했다면 **반드시 해당 파일을 템플릿으로 사용**한다.
-- 업로드 폴더에 `.hwpx` 파일이 있는지 확인
+사용자가 `.hwpx`(또는 0-A단계에서 변환한 `.hwp`) 양식 파일을 업로드했다면 **반드시 해당 파일을 템플릿으로 사용**한다.
+- 업로드 폴더에 `.hwpx`/`.hwp` 파일이 있는지 확인
 - 있다면 → 그 파일을 복사하여 템플릿으로 사용 (기본 양식 무시)
 - "이 양식으로 만들어줘", "이 파일 기반으로" 등의 표현 → 100% 해당 파일 사용
 
@@ -333,6 +442,8 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # �
 
 | 작업 | 접근 방식 |
 |------|----------|
+| **`.hwp` 파일을 받았을 때** | **0-A단계 — `hwp_bridge.mjs to-hwpx`로 변환 후 진행** |
+| **`.hwp`로 돌려줘야 할 때** | **`hwp_bridge.mjs to-hwp` + `verify` 쪽수 확인** |
 | 보고서/공문/양식 문서 생성 | **양식 파일 + ZIP-level 치환** (★ 권장) |
 | **기존 원고 수정·증보** | **`references/edit-existing.md` 절차** |
 | 아주 단순한 문서 | `HwpxDocument.new()` → `.save()` → 후처리 |
@@ -361,5 +472,11 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # �
 12. **레이아웃 충실도**: python-hwpx는 레이아웃 엔진이 아님. 페이지 나눔은 한글 앱이 결정
 13. **글꼴 임베딩**: 생성 HWPX에 글꼴 미포함. 열람 환경에 해당 글꼴 필요
 14. **공문서 날짜 형식**: `2026-02-13`이 아닌 `2026. 2. 13.` (월·일 앞 0 생략)
-15. **HWPX ↔ HWP**: python-hwpx는 HWPX만 처리. 레거시 `.hwp`는 별도 도구 필요
-16. **fix_namespaces 호출법**: `exec()` 말고 `subprocess.run()` 사용
+15. **HWPX ↔ HWP**: python-hwpx는 HWPX만 처리한다. 레거시 `.hwp`는 **0-A단계의 `@rhwp/core` 변환기**로 앞뒤에서 감싼다(사용자에게 수동 변환을 요구하지 않는다)
+16. **왕복은 1회**: `.hwp` → `.hwpx` → 편집 → `.hwp`. 편집 중간에 형식을 오가지 않는다
+17. **변환 손실 보고 필수**: `contentLoss.count > 0`이면 항목을 사용자에게 알리고 진행 여부를 묻는다
+18. **fix_namespaces 호출법**: `exec()` 말고 `subprocess.run()` 사용
+
+---
+
+작성일: 2026-08-29 | 버전: v1.1

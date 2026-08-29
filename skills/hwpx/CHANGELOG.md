@@ -1,5 +1,32 @@
 # 변경 이력
 
+## v1.1 — 2026-08-29 (HWP 입력 게이트)
+
+`.hwp`(HWP5 바이너리)를 그대로 업로드해도 이 스킬이 동작하도록 앞뒤에 변환 게이트를 붙였다.
+사용자가 한글에서 "hwpx로 다시 저장"하는 수작업이 없어진다.
+
+### 추가
+
+- **0-A단계: 입력 형식 게이트** — 업로드가 `.hwp`면 `@rhwp/core`(Rust+WASM, 한컴오피스 불필요)로
+  `.hwpx`로 변환한 뒤 기존 A/B 절차를 그대로 탄다. `.hml`도 같은 경로.
+- **`scripts/hwp_bridge.mjs`** — `to-hwpx` / `to-hwp` 양방향 변환기.
+  `contentLoss` 손실 보고(항목 있으면 종료코드 3)와 `exportHwpVerify` 쪽수 보존 검증을 함께 낸다.
+- **산출 형식 규약** — 사용자가 올린 확장자로 되돌린다. `.hwp` 입력이면 마지막에 `to-hwp`로
+  역변환하고 `pageCountBefore == pageCountAfter` · `recovered: true`를 확인한 뒤 전달.
+- 누름틀 서식에 값만 채우는 작업은 변환하지 말고 `rhwp-form-fill` 스킬로 넘기라는 분기 규칙.
+
+### 수정
+
+- frontmatter `description`에 `.hwp` 트리거·rhwp-form-fill 분기 명시.
+- 주의사항 15번(“레거시 .hwp는 별도 도구 필요”)을 0-A단계 참조로 교체, 16·17번 신설.
+- Quick Reference에 변환·역변환 2행 추가.
+
+### 검증 (2026-08-29 실측)
+
+`assets/form2.hwp`(3쪽, 이미지 참조 17건) 기준 전체 파이프라인 통과 —
+변환 무손실(`count: 0`) → ZIP 치환 → `clear_layout_cache` → `verify_hwpx.py` PASS(글자 수 295→295)
+→ 역변환 `recovered: true`(3쪽 유지). 렌더 비교에서 레이아웃 동일.
+
 ## v1.0 — 2026-08-16 (배포판)
 
 원본 스킬(최종 수정 2026-07-29)을 **제3자 배포용으로 정리**한 첫 공개판.

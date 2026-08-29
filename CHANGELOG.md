@@ -3,6 +3,33 @@
 스킬 자체의 변경 이력은 `skills/hwpx/CHANGELOG.md`를 보세요.
 이 파일은 **저장소 구조·배포 방식**의 변경만 기록합니다.
 
+## v1.1.0 — 2026-08-29
+
+hwpx 스킬 v1.1을 반영했다. 핵심은 **HWP 입력 게이트** — `.hwp`(HWP5 바이너리)를 그대로
+업로드해도 스킬이 자동으로 `.hwpx`로 변환해 처리하고, 작업이 끝나면 올린 형식 그대로
+되돌려준다. 한컴오피스가 필요 없다(`@rhwp/core` Rust+WASM 변환기 사용).
+
+### 추가
+
+- **`skills/hwpx/scripts/hwp_bridge.mjs`** — HWP5 ↔ HWPX 양방향 변환기.
+  변환 손실 보고(`contentLoss`)와 역변환 쪽수 보존 검증(`exportHwpVerify`)을 함께 낸다.
+- **`dist/hwpx-v1.1.0.skill` · `dist/hwpx-v1.1.0.zip`** — 코워크 업로드용 v1.1 배포 파일.
+
+### 수정
+
+- `skills/hwpx/SKILL.md` — 0-A단계(입력 형식 게이트)·산출 형식 규약 추가, v1.1.
+  상세 변경은 `skills/hwpx/CHANGELOG.md` 참조.
+- `.claude-plugin/marketplace.json` · `plugin.json` — 버전 1.1.0, 설명에 `.hwp` 지원 명시.
+- `README.md` · `install.sh` · `install.ps1` — 배포 파일명·버전 표기 갱신.
+- v1.0.0 배포 파일(`dist/hwpx-v1.0.0.*`)은 기존 사용자 링크 보존을 위해 유지.
+
+### 새 의존성 (스킬 실행 시)
+
+- Node.js + `npm i @rhwp/core` — `.hwp` 입력을 만났을 때(0-A단계)만 필요.
+  `.hwpx`만 다루는 작업은 기존과 동일하게 파이썬만으로 동작한다.
+
+---
+
 ## v1.0.0 — 2026-08-16
 
 첫 공개판. hwpx 스킬을 **클로드 코드 · 코워크 · 코덱스** 세 환경에 모두 설치할 수 있도록
@@ -41,4 +68,4 @@
 
 ---
 
-작성일: 2026-08-16 | 버전: v1.0.0 | 작성: 프랭크 × 에이미 협업
+작성일: 2026-08-29 | 버전: v1.1.0 | 작성: 프랭크 × 에이미 협업
