@@ -1,12 +1,20 @@
 {
   "name": "hwpx",
   "displayName": "HWPX 한글 문서",
-  "description": "한글 문서(.hwp/.hwpx) 생성·읽기·편집·템플릿 치환 스킬. .hwp를 그대로 올려도 자동 변환해 처리하고 올린 형식으로 되돌려준다(한컴오피스 불필요). 보고서·공문·기안문 작성과 기존 한글 원고 수정을 지원한다.",
-  "version": "1.1.0",
+  "description": "한글 문서(.hwp/.hwpx)를 읽고·편집하고·생성해 저장하는 단독 스킬. 다른 스킬을 함께 설치할 필요가 없다. .hwp를 그대로 올려도 자동 변환해 처리하고 올린 형식으로 되돌려준다(한컴오피스 불필요). 보고서·공문·기안문 작성과 기존 한글 원고 수정을 지원한다.",
+  "version": "1.2.0",
   "author": {
     "name": "이현구(프랭크)"
   },
   "homepage": "https://github.com/HYEONKOOLEE/hwpx-skill",
   "repository": "https://github.com/HYEONKOOLEE/hwpx-skill",
-  "keywords": ["hwpx", "hwp", "한글", "korean", "document", "report", "공문"]
+  "keywords": [
+    "hwpx",
+    "hwp",
+    "한글",
+    "korean",
+    "document",
+    "report",
+    "공문"
+  ]
 }
