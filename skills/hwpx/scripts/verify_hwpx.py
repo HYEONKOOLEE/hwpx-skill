@@ -9,10 +9,16 @@ verify_hwpx.py — HWPX 산출물 무결성 검사 (사용자에게 전달하기
 2. 필수 파트     : mimetype / version.xml / META-INF/container.xml / Contents/*.xml
 3. XML 유효성    : 모든 XML 파트가 well-formed인가
 4. 레이아웃 캐시 : linesegarray 잔존 개수(텍스트를 편집했다면 0이어야 함)
-5. 이미지 무결성 : content.hpf에 등록된 BinData 항목이 실제로 존재하는가
-6. 본문 통계     : 단락 수 / 이미지 수 / 추출 글자 수
+5. 표 구조       : 병합(rowSpan/colSpan) 범위가 표 밖으로 넘치지 않는가  ★ v1.3 신설
+6. 단락 id 중복  : <hp:p id>가 섹션 안에서 유일한가                      ★ v1.3 신설
+7. 이미지 무결성 : content.hpf에 등록된 BinData 항목이 실제로 존재하는가
+8. 본문 통계     : 단락 수 / 이미지 수 / 추출 글자 수
 
 원본과 비교하려면 --base 로 편집 전 파일을 함께 준다. 텍스트 diff 요약을 낸다.
+
+※ 5번은 한글이 "파일을 읽거나 저장하는데 오류가 있습니다"로 파일 자체를 거부하는
+   대표 원인이다. 표에서 행·열을 지운 뒤 병합 셀의 span을 줄이지 않으면 발생하며,
+   `@rhwp/core`의 contentLoss·exportHwpVerify로는 잡히지 않는다.
 
 사용법
 ------
@@ -26,8 +32,61 @@ import re
 import sys
 import zipfile
 import xml.dom.minidom as minidom
+import xml.etree.ElementTree as ET
+from collections import Counter
 
 REQUIRED = ["mimetype", "version.xml", "META-INF/container.xml"]
+
+
+def local(el):
+    """네임스페이스 프리픽스를 뗀 태그 이름."""
+    return el.tag.rsplit("}", 1)[-1]
+
+
+def check_tables(xml_bytes):
+    """표의 병합 정합성 검사. 오류 메시지 리스트와 검사한 표 수를 돌려준다.
+
+    HWPX의 세로 병합 셀은 <hp:cellAddr rowAddr=".."/> + <hp:cellSpan rowSpan=".."/>로
+    '시작 주소 + 걸치는 행 수'를 표현한다. 행을 지운 뒤 rowSpan을 줄이지 않으면
+    셀이 표 밖까지 걸친 상태가 되고, 한글은 그런 문서를 열지 않는다.
+    """
+    errors, n_tbl = [], 0
+    root = ET.fromstring(xml_bytes)
+    for tbl in root.iter():
+        if local(tbl) != "tbl":
+            continue
+        n_tbl += 1
+        # 중첩 표의 행을 끌어오지 않도록 직계 자식만 센다
+        rows = [c for c in tbl if local(c) == "tr"]
+        n_rows = len(rows)
+        declared = tbl.get("rowCnt")
+        if declared is not None and int(declared) != n_rows:
+            errors.append(f"tbl rowCnt={declared} 인데 실제 <hp:tr>은 {n_rows}개")
+
+        n_cols = int(tbl.get("colCnt") or 0)
+        for tr in rows:
+            for tc in tr:
+                if local(tc) != "tc":
+                    continue
+                addr = span = None
+                for child in tc:
+                    if local(child) == "cellAddr":
+                        addr = child
+                    elif local(child) == "cellSpan":
+                        span = child
+                if addr is None or span is None:
+                    continue
+                r0, rs = int(addr.get("rowAddr")), int(span.get("rowSpan"))
+                c0, cs = int(addr.get("colAddr")), int(span.get("colSpan"))
+                if r0 + rs > n_rows:
+                    errors.append(
+                        f"세로 병합이 표 밖으로 넘침: rowAddr={r0} rowSpan={rs} "
+                        f"(표 행 수 {n_rows}) — 행을 지웠다면 rowSpan을 {max(n_rows - r0, 1)}로 줄일 것")
+                if n_cols and c0 + cs > n_cols:
+                    errors.append(
+                        f"가로 병합이 표 밖으로 넘침: colAddr={c0} colSpan={cs} "
+                        f"(표 열 수 {n_cols})")
+    return errors, n_tbl
 
 
 def sections(z):
@@ -98,7 +157,36 @@ def check(path, base=None, dump=None):
         else:
             print("  ✓ 레이아웃 캐시 없음 (한글이 줄 위치 재계산)")
 
-        # 5. 이미지 참조 무결성
+        # 5. 표 구조 — 병합 범위가 표 밖으로 넘치지 않는가
+        #    (한글이 파일 자체를 거부하는 대표 원인. 다른 검증 도구는 잡지 못한다)
+        tbl_errors, n_tbl = [], 0
+        for n in sections(z):
+            try:
+                errs, cnt = check_tables(z.read(n))
+            except ET.ParseError:
+                continue          # XML 파싱 실패는 3번에서 이미 보고됨
+            tbl_errors += [f"{n}: {e}" for e in errs]
+            n_tbl += cnt
+        if tbl_errors:
+            bad("표 병합 정합성 오류 — 한글이 파일을 열지 못합니다:\n     "
+                + "\n     ".join(tbl_errors))
+        elif n_tbl:
+            print(f"  ✓ 표 구조 정상 ({n_tbl}개 표, 병합 범위 이상 없음)")
+
+        # 6. 단락 id 중복
+        dup_report = []
+        for n in sections(z):
+            ids = re.findall(r"<\w*:?p\s[^>]*\bid=\"(\d+)\"", z.read(n).decode("utf-8"))
+            dups = [k for k, v in Counter(ids).items() if v > 1]
+            if dups:
+                dup_report.append(f"{n}: {len(dups)}개 중복 (예: {dups[:5]})")
+        if dup_report:
+            bad("단락 id 중복 — 편집 중 <hp:p>를 복제했다면 id를 새로 부여할 것:\n     "
+                + "\n     ".join(dup_report))
+        else:
+            print("  ✓ 단락 id 유일")
+
+        # 7. 이미지 참조 무결성
         if "Contents/content.hpf" in names:
             hpf = z.read("Contents/content.hpf").decode("utf-8")
             refs = re.findall(r'href="(BinData/[^"]+)"', hpf)
@@ -108,7 +196,7 @@ def check(path, base=None, dump=None):
             elif refs:
                 print(f"  ✓ 이미지 참조 {len(refs)}건 모두 존재")
 
-        # 6. 통계
+        # 8. 통계
         body = "".join(z.read(n).decode("utf-8") for n in sections(z))
         text = extract_text(z)
         print(f"  · 단락 {len(re.findall(r'<hp:p ', body))} / "

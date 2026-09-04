@@ -5,8 +5,9 @@ description: "한글 문서(.hwp / .hwpx)를 읽고·편집하고·생성해 저
 
 # HWPX 문서 생성·편집 스킬
 
-> **버전** v1.2 · **최종 수정** 2026-09-01 · **변경 이력** `CHANGELOG.md`
-> v1.2 변경점: **스킬 범위를 읽기·편집·저장으로 한정** — 다른 스킬로 넘기는 분기 제거, 단독 설치로 완결
+> **버전** v1.3 · **최종 수정** 2026-09-04 · **변경 이력** `CHANGELOG.md`
+> v1.3 변경점: **R4(표 구조 무결성) 신설** — 행·열을 지우거나 추가할 때 세로 병합(rowSpan) 정합성을 함께 맞추지 않으면 한글이 파일을 열지 못한다. `verify_hwpx.py`에 검사 5·6번(표 병합 / 단락 id 중복)을 추가했다.
+> v1.2 변경점: 스킬 범위를 읽기·편집·저장으로 한정 — 다른 스킬로 넘기는 분기 제거, 단독 설치로 완결
 > 설치·사용법은 같은 폴더의 `README.md`를 먼저 보세요.
 
 ## 개요
@@ -30,6 +31,8 @@ HWPX는 한컴오피스 한글의 개방형 문서 포맷이다. 내부는 **ZIP
 pip install python-hwpx --break-system-packages       # HWPX 처리 (필수)
 npm i @rhwp/core                                       # .hwp 입력을 받을 때만 (0-A단계)
 ```
+
+> 표 구조를 코드로 다룰 때는 `lxml`이 편하다(`pip install lxml`). `scripts/`의 검증 도구는 표준 라이브러리만 쓰므로 별도 설치가 필요 없다.
 
 > ### ⚠️ `@rhwp/core`는 npm 라이브러리다 — 설치할 "다른 스킬"이 아니다
 >
@@ -72,46 +75,12 @@ file 업로드파일.hwp          # "Hancom HWP ... version 5.0" 이면 HWP5 바
 mkdir -p ./_bridge && cd ./_bridge && npm init -y >/dev/null && npm i @rhwp/core
 ```
 
-### 변환 스크립트 `_bridge/hwp_bridge.mjs` (그대로 생성한다)
-
-```javascript
-#!/usr/bin/env node
-// hwp_bridge.mjs — HWP5 <-> HWPX 변환 게이트 (@rhwp/core WASM, 한컴오피스 불필요)
-//   node hwp_bridge.mjs to-hwpx <입력.hwp>  <출력.hwpx>
-//   node hwp_bridge.mjs to-hwp  <입력.hwpx> <출력.hwp>
-import fs from 'node:fs';
-import path from 'node:path';
-import { createRequire } from 'node:module';
-
-const [, , mode, src, dst] = process.argv;
-if (!['to-hwpx', 'to-hwp'].includes(mode) || !src || !dst) {
-  console.error('usage: node hwp_bridge.mjs <to-hwpx|to-hwp> <src> <dst>');
-  process.exit(2);
-}
-
-const require = createRequire(import.meta.url);
-const pkgDir = path.dirname(require.resolve('@rhwp/core/package.json'));
-const { default: init, HwpDocument } = await import(path.join(pkgDir, 'rhwp.js'));
-await init({ module_or_path: fs.readFileSync(path.join(pkgDir, 'rhwp_bg.wasm')) });
-
-const doc = new HwpDocument(new Uint8Array(fs.readFileSync(src)));
-const exp = mode === 'to-hwpx' ? doc.exportHwpxWithReport() : doc.exportHwpWithReport();
-const loss = JSON.parse(exp.contentLoss() || '{}');
-const bytes = exp.takeBytes();
-fs.writeFileSync(dst, Buffer.from(bytes));
-
-const out = { mode, src, dst, bytes: bytes.length, contentLoss: loss };
-if (mode === 'to-hwp') out.verify = JSON.parse(doc.exportHwpVerify());   // 쪽수 보존 검증
-console.log(JSON.stringify(out, null, 2));
-
-// 손실이 보고되면 종료코드 3 — 조용히 넘어가지 않는다
-process.exit((loss.count ?? 0) > 0 ? 3 : 0);
-```
+변환 스크립트는 `$SKILL_DIR/scripts/hwp_bridge.mjs`를 그대로 쓴다.
 
 ### 실행
 
 ```bash
-node ./_bridge/hwp_bridge.mjs to-hwpx ./원본.hwp ./work.hwpx
+node "$SKILL_DIR/scripts/hwp_bridge.mjs" to-hwpx ./원본.hwp ./work.hwpx
 python "$SKILL_DIR/scripts/verify_hwpx.py" ./work.hwpx        # 변환 직후 1차 검증
 ```
 
@@ -124,6 +93,9 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" ./work.hwpx        # 변환 직후 1�
   저장해 다시 올려달라"고 요청한다(최후 수단).
 - `npm i`가 네트워크 문제로 실패하면 변환할 수 없다. 위와 같이 수동 저장을 요청한다.
 
+> ⚠️ **`contentLoss: 0` + `recovered: true`는 "한글에서 열린다"는 뜻이 아니다.**
+> 이 리포트는 텍스트·쪽수 보존만 본다. 표 병합 같은 구조 무결성은 검사하지 않는다 → **R4** 참조.
+
 ### 산출 형식 규약 — **올린 형식 그대로 되돌린다**
 
 작업이 끝나면 사용자가 올린 확장자로 맞춰 돌려준다.
@@ -135,12 +107,14 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" ./work.hwpx        # 변환 직후 1�
 
 ```bash
 # 편집 완료본(.hwpx) → 제출용(.hwp)
-node ./_bridge/hwp_bridge.mjs to-hwp ./work.hwpx ./최종본.hwp
+node "$SKILL_DIR/scripts/hwp_bridge.mjs" to-hwp ./work.hwpx ./최종본.hwp
 ```
 
 역변환 결과의 `verify` 블록에서 **`pageCountBefore == pageCountAfter`** 와
 **`recovered: true`** 를 확인한 뒤에 전달한다. 어긋나면 `.hwpx`도 함께 전달하고
 사실을 알린다.
+
+> **표 구조를 변경한 문서라면 `.hwp`와 `.hwpx`를 항상 함께 전달한다.** 한글이 `.hwp`를 거부해도 사용자가 즉시 `.hwpx`로 확인할 수 있어야 한다.
 
 > **원본은 절대 덮어쓰지 않는다.** 업로드된 `.hwp`는 그대로 두고 `work.hwpx`,
 > `최종본.hwp` 같은 새 파일로만 작업한다.
@@ -165,9 +139,9 @@ node ./_bridge/hwp_bridge.mjs to-hwp ./work.hwpx ./최종본.hwp
 
 ---
 
-## 🔴 유형 무관 절대 규칙 3가지
+## 🔴 유형 무관 절대 규칙 4가지
 
-이 세 가지는 A·B 어느 쪽이든, 문서를 저장할 때마다 예외 없이 적용한다.
+이 네 가지는 A·B 어느 쪽이든, 문서를 저장할 때마다 예외 없이 적용한다.
 
 ### R1. 텍스트를 한 글자라도 바꿨으면 레이아웃 캐시를 지운다
 
@@ -195,6 +169,75 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" out.hwpx --base 원본.hwpx
 
 **PASS**가 뜨고 `linesegarray 잔존 0개`를 확인하기 전에는 사용자에게 파일을 보내지 않는다.
 
+### 🆕 R4. 표의 행·열을 지우거나 추가했으면 병합(span) 정합성을 맞춘다
+
+> **이것을 빠뜨리면 한글이 "파일을 읽거나 저장하는데 오류가 있습니다"로 파일 자체를 거부한다.**
+> v1.2까지는 `verify_hwpx.py`도, `@rhwp/core`의 `contentLoss`·`exportHwpVerify`도 이 오류를
+> 잡지 못하고 **전부 PASS를 줬다.** v1.3에서 `verify_hwpx.py` 검사 5번으로 추가했다.
+
+#### 무슨 일이 일어나는가
+
+HWPX 표에서 세로로 병합된 셀은 `<hp:cellAddr rowAddr="7"/>` + `<hp:cellSpan rowSpan="11"/>`처럼 **시작 주소 + 걸치는 행 수**로 표현된다. 표 아래쪽 빈 행 3개를 지우면 표는 15행이 되는데, 병합 셀은 여전히 "나는 7행부터 11행을 차지한다"(= 18행까지)고 주장한다. 한글은 이 모순을 만나면 문서를 **아예 열지 않는다.**
+
+서식 문서일수록 위험하다. 관공서 서식은 겉보기에 여러 표처럼 보여도 **전체가 표 하나**이고, 왼쪽 라벨 칸이 `rowSpan` 10 이상으로 크게 병합되어 있는 경우가 흔하다.
+
+#### 규칙
+
+1. **꼬리 행만 지운다.** 중간 행을 지우면 아래 행들의 `rowAddr`가 전부 밀려 훨씬 복잡해진다.
+2. **`rowAddr`를 재부여하지 않는다.** 꼬리만 지우면 남은 행의 주소는 이미 맞다. 순번을 다시 매기면 병합 셀 주소가 깨진다.
+3. **걸쳐 있던 병합 셀의 `rowSpan`을 줄이고**, `<hp:tbl rowCnt>`를 남은 행 수로 갱신한다.
+4. **저장 직전 `verify_hwpx.py`(v1.3 이상) 또는 아래 assert를 반드시 통과시킨다.**
+5. **애매하면 지우지 말고 빈 행으로 남긴다.** 빈 행 몇 개는 흠이지만, 안 열리는 파일은 산출물이 아니다.
+
+#### 검사·보정 코드 (표 구조를 건드렸다면 그대로 붙여 쓴다)
+
+```python
+from lxml import etree
+P = "{http://www.hancom.co.kr/hwpml/2011/paragraph}"
+
+def fix_and_check_table(tbl):
+    """행 삭제 후 rowSpan/rowCnt 보정 + 정합성 assert"""
+    rows = tbl.findall(P + "tr")
+    n_rows = len(rows)
+    for tr in rows:
+        for tc in tr.findall(P + "tc"):
+            a, s = tc.find(P + "cellAddr"), tc.find(P + "cellSpan")
+            if a is None or s is None:
+                continue
+            top, span = int(a.get("rowAddr")), int(s.get("rowSpan"))
+            if top + span > n_rows:                       # 삭제된 행까지 걸친 병합
+                s.set("rowSpan", str(n_rows - top))
+                print(f"[fix] rowSpan {span} -> {n_rows - top} (rowAddr={top})")
+    tbl.set("rowCnt", str(n_rows))
+
+    # 최종 검사 — 하나라도 걸리면 저장하지 않는다
+    for tr in tbl.findall(P + "tr"):
+        for tc in tr.findall(P + "tc"):
+            a, s = tc.find(P + "cellAddr"), tc.find(P + "cellSpan")
+            if a is not None and s is not None:
+                assert int(a.get("rowAddr")) + int(s.get("rowSpan")) <= n_rows, \
+                    f"rowSpan 초과: rowAddr={a.get('rowAddr')} rowSpan={s.get('rowSpan')} rows={n_rows}"
+
+for tbl in root.iter(P + "tbl"):
+    fix_and_check_table(tbl)
+```
+
+#### 표 구조 조사 (편집 전에 반드시 한 번)
+
+```python
+for ti, tbl in enumerate(root.iter(P + "tbl")):
+    print(f"--- tbl {ti} rowCnt={tbl.get('rowCnt')} colCnt={tbl.get('colCnt')}")
+    for i, tr in enumerate(tbl.findall(P + "tr")):
+        cells = []
+        for tc in tr.findall(P + "tc"):
+            a, s = tc.find(P + "cellAddr"), tc.find(P + "cellSpan")
+            cells.append(f"r{a.get('rowAddr')}c{a.get('colAddr')}"
+                         f"/rs{s.get('rowSpan')}cs{s.get('colSpan')}")
+        print("   tr", i, cells)
+```
+
+`rs`가 2 이상인 셀이 보이면 그 행 범위는 함부로 건드리지 않는다. **`colSpan`(가로 병합)도 열을 지울 때 같은 규칙이 적용된다.**
+
 ---
 
 ## A. 템플릿 치환 워크플로
@@ -221,17 +264,21 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" out.hwpx --base 원본.hwpx
      ↓
 [2] ObjectFinder로 양식 내 텍스트 전수 조사
      ↓
+[2-1] 표 구조(rowSpan/colSpan) 조사                 ★ R4 — 표를 건드릴 예정이면 필수
+     ↓
 [3] 플레이스홀더 목록 작성 (어떤 텍스트를 뭘로 바꿀지 매핑)
      ↓
 [4] ZIP-level 전체 치환 (표 내부 포함)
      ↓  (동일 플레이스홀더가 여러 번 나오면 순차 치환)
+[4-1] 행·열을 지웠다면 span 보정 + assert           ★ R4
+     ↓
 [5] 네임스페이스 후처리 (fix_namespaces.py)
      ↓
 [6] 레이아웃 캐시 제거 (clear_layout_cache.py)      ★ R1
      ↓
 [7] 무결성 검증 (verify_hwpx.py)                    ★ R3
      ↓
-[8] 결과물 전달
+[8] 결과물 전달 (표 구조를 바꿨으면 .hwp + .hwpx 동시 전달)
 ```
 
 ### 핵심: HwpxDocument.open()은 사용하지 않는다
@@ -289,6 +336,33 @@ def zip_replace_sequential(src_path, dst_path, old, new_list):
 ```
 
 > **치환이 조용히 실패하는 경우가 가장 위험하다.** 굵은 글씨나 색상 때문에 한 문장이 여러 `<hp:run>`으로 쪼개져 있으면 문장 전체로는 매칭되지 않는다. 굵게 구간을 넘지 않는 **부분 문자열**을 앵커로 잡고, 치환 함수에 `assert`를 넣어 실패를 드러낸다. 자세한 내용은 `references/edit-existing.md`「함정 1」.
+
+### 셀 내용을 여러 줄로 교체할 때 (lxml)
+
+한 셀에 여러 줄을 넣으려면 기존 `<hp:p>`를 복제해 줄 수만큼 만든다. **서식(`paraPrIDRef`·`charPrIDRef`)은 같은 표의 채워진 셀에서 가져와 맞춘다.** 빈 셀은 서식 ID가 다른 경우가 많다.
+
+```python
+import copy
+
+def set_cell(tc, lines, para_ref=None, char_ref=None):
+    sub = tc.find(P + "subList")
+    paras = sub.findall(P + "p")
+    base = copy.deepcopy(paras[0])
+    for r in base.findall(P + "run")[1:]:
+        base.remove(r)
+    run = base.find(P + "run")
+    if para_ref: base.set("paraPrIDRef", para_ref)
+    if char_ref: run.set("charPrIDRef", char_ref)
+    for p in paras:
+        sub.remove(p)
+    for line in lines:
+        np = copy.deepcopy(base)
+        np.find(P + "run").find(P + "t").text = line
+        sub.append(np)
+```
+
+> `<hp:p id>`는 문서 안에서 **유일해야** 한다. 복제할 때 id를 새로 부여하고, 저장 전 중복이 없는지 확인한다(`verify_hwpx.py` 검사 6번).
+> lxml로 다시 직렬화할 때 XML 선언이 바뀌지 않도록 주의한다 — 원본과 동일하게 `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>`를 붙인다.
 
 ---
 
@@ -385,6 +459,7 @@ subprocess.run(["python", f"{SKILL_DIR}/scripts/verify_hwpx.py", WORK], check=Tr
 [2] 본문 텍스트 추출해 통독
 [3] 서식 ID 조사 → 본문/굵게/소제목/캡션 ID 확정
 [4] 문자열 치환 + 단락 삽입 (새 단락에는 linesegarray를 넣지 않는다)
+[4-1] 표 행·열을 지웠다면 span 보정 + assert          ★ R4
 [5] mimetype-first 재패키징                          ★ R2
 [6] 레이아웃 캐시 제거                                ★ R1
 [7] verify_hwpx.py --base 원본 → PASS                ★ R3
@@ -453,9 +528,32 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx
 python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # 편집 작업이면
 ```
 
-검사 항목: mimetype 규약 / 필수 파트 / XML well-formed / **linesegarray 잔존** / 이미지 참조 무결성 / 단락·이미지·글자 수 통계. `--base`를 주면 원본 대비 글자 수 증감을 보고한다.
+검사 항목(v1.3 기준):
+
+| # | 항목 | 놓치면 |
+|---|---|---|
+| 1 | mimetype 규약 | 한글이 파일을 못 엶 |
+| 2 | 필수 파트 | 한글이 파일을 못 엶 |
+| 3 | XML well-formed | 한글이 파일을 못 엶 |
+| 4 | linesegarray 잔존 | 글씨 겹침 |
+| 5 | **표 병합(rowSpan/colSpan) 정합성** ★신설 | **한글이 파일을 못 엶** |
+| 6 | **단락 id 중복** ★신설 | 한글이 파일을 못 엶 |
+| 7 | 이미지 참조 무결성 | 그림 깨짐 |
+| 8 | 단락·이미지·글자 수 통계 | — |
+
+`--base`를 주면 원본 대비 글자 수 증감을 보고한다.
 
 **PASS + 캐시 잔존 0**을 확인한 뒤에 사용자에게 전달한다.
+
+> ### 이 스크립트도 검사하지 **않는** 것
+>
+> | 항목 | 확인 방법 |
+> |---|---|
+> | XML 선언 형태 변화 | 원본과 동일한 선언을 붙였는지 확인 |
+> | HWP5 역변환 어댑터의 자체 실패 | `.hwpx`도 함께 전달해 사용자가 대조 |
+> | 실제 한글 앱에서의 열림 여부 | 최종 확인은 사용자가 한글에서 연다 |
+>
+> **구버전(v1.2 이하) `verify_hwpx.py`를 쓰고 있다면 5·6번을 직접 확인해야 한다.**
 
 ---
 
@@ -469,11 +567,32 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # �
 | **기존 원고 수정·증보** | **`references/edit-existing.md` 절차** |
 | 아주 단순한 문서 | `HwpxDocument.new()` → `.save()` → 후처리 |
 | 표(테이블) 추가 | `doc.add_table(rows, cols)` → `set_cell_text()` |
+| **표의 빈 행 삭제** | **R4 — rowSpan 보정 + verify 검사 5번 통과 필수** |
 | 머리글/바닥글 | `doc.set_header_text()` / `doc.set_footer_text()` |
 | 텍스트 검색/추출 | `ObjectFinder(filepath)` |
 | 셀 병합 | `table.merge_cells(row1, col1, row2, col2)` |
 | 글씨 겹침 발생 | `clear_layout_cache.py` |
+| **한글이 "파일을 읽거나 저장하는데 오류"** | **아래 트러블슈팅 표** |
 | 전달 전 최종 확인 | `verify_hwpx.py --base 원본` |
+
+---
+
+## 트러블슈팅 — 한글이 파일을 못 열 때
+
+> 증상: **"파일을 읽거나 저장하는데 오류가 있습니다."** 대화상자
+
+의심 순서대로 확인한다.
+
+| # | 원인 | 확인·조치 |
+|---|---|---|
+| 1 | **표 병합 정합성 깨짐** (행·열을 지웠는데 span 미보정) | `verify_hwpx.py` 검사 5번 → 보고된 셀의 `rowSpan` 보정 (**R4**) |
+| 2 | **단락 id 중복** (`<hp:p>`를 복제하며 id 재사용) | `verify_hwpx.py` 검사 6번 → id 재부여 |
+| 3 | mimetype이 압축됨 / 첫 항목이 아님 | **R2** 규약대로 재패키징 |
+| 4 | XML not well-formed (이스케이프 누락) | `&`, `<`, `>` 이스케이프 확인 |
+| 5 | 네임스페이스 프리픽스 변형 | `fix_namespaces.py` 실행 |
+| 6 | HWPX→HWP 역변환 자체 실패 | `.hwpx`를 전달하고 사용자가 한글에서 "다른 이름으로 저장"하도록 안내 |
+
+**즉시 조치**: 원인 규명 전이라도 `.hwpx`를 먼저 전달한다. 한글 2010 이상은 `.hwpx`를 그대로 열며, 사용자는 거기서 `.hwp`로 저장할 수 있다. **사용자를 기다리게 하지 않는 것이 우선이다.**
 
 ---
 
@@ -483,22 +602,26 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # �
 2. **양식 우선**: 사용자 업로드 양식 > 기본 제공 양식 > `HwpxDocument.new()`
 3. **ZIP-level 치환 우선**: `HwpxDocument.open()`보다 안전하고 호환성이 높다
 4. **양식 텍스트 조사 필수**: 치환 전에 반드시 ObjectFinder로 전수 조사
-5. **순차 치환 주의**: 동일 플레이스홀더가 여러 번 나오면 `zip_replace_sequential`
-6. **치환 실패를 조용히 넘기지 않는다**: run 분할 때문에 문장 전체 매칭은 자주 실패한다. `assert`로 드러낼 것
-7. **XML 이스케이프**: 본문에 넣는 텍스트의 `&`, `<`, `>`를 반드시 이스케이프
-8. **레이아웃 캐시 제거 필수**: 텍스트를 바꿨으면 표/본문 가리지 말고 실행. 안 하면 글씨 겹침
-9. **셀 높이는 추정 금지**: 캐시만 지우면 한글이 자동으로 맞춘다
-10. **재패키징 규약**: mimetype은 첫 항목 + 무압축(ZIP_STORED)
-11. **전달 전 검증 필수**: `verify_hwpx.py` PASS 없이는 파일을 보내지 않는다
-12. **레이아웃 충실도**: python-hwpx는 레이아웃 엔진이 아님. 페이지 나눔은 한글 앱이 결정
-13. **글꼴 임베딩**: 생성 HWPX에 글꼴 미포함. 열람 환경에 해당 글꼴 필요
-14. **공문서 날짜 형식**: `2026-02-13`이 아닌 `2026. 2. 13.` (월·일 앞 0 생략)
-15. **HWPX ↔ HWP**: python-hwpx는 HWPX만 처리한다. 레거시 `.hwp`는 **0-A단계의 `@rhwp/core` 변환기**(npm 라이브러리, 별도 스킬 아님)로 앞뒤에서 감싼다(사용자에게 수동 변환을 요구하지 않는다)
-16. **왕복은 1회**: `.hwp` → `.hwpx` → 편집 → `.hwp`. 편집 중간에 형식을 오가지 않는다
-17. **변환 손실 보고 필수**: `contentLoss.count > 0`이면 항목을 사용자에게 알리고 진행 여부를 묻는다
-18. **fix_namespaces 호출법**: `exec()` 말고 `subprocess.run()` 사용
-19. **범위 밖 요청 처리**: 누름틀 자동 채우기·메일머지 요청이 오면 **다른 스킬 설치를 안내하지 않는다.** 이 스킬 범위 밖임을 한 줄로 알리고, 대신 가능한 방법(해당 텍스트를 ZIP-level 치환으로 직접 바꾸기)을 제시한다
+5. **표를 건드릴 거면 표 구조부터 조사**: `rowSpan`이 2 이상인 셀 위치를 먼저 파악한다 (R4)
+6. **순차 치환 주의**: 동일 플레이스홀더가 여러 번 나오면 `zip_replace_sequential`
+7. **치환 실패를 조용히 넘기지 않는다**: run 분할 때문에 문장 전체 매칭은 자주 실패한다. `assert`로 드러낼 것
+8. **XML 이스케이프**: 본문에 넣는 텍스트의 `&`, `<`, `>`를 반드시 이스케이프
+9. **레이아웃 캐시 제거 필수**: 텍스트를 바꿨으면 표/본문 가리지 말고 실행. 안 하면 글씨 겹침
+10. **셀 높이는 추정 금지**: 캐시만 지우면 한글이 자동으로 맞춘다
+11. **재패키징 규약**: mimetype은 첫 항목 + 무압축(ZIP_STORED)
+12. **행 삭제 시 병합 보정 필수**: `rowSpan`·`rowCnt`를 맞추고 검증으로 확인 (R4). 애매하면 빈 행으로 남긴다
+13. **검증 통과 ≠ 열린다**: `contentLoss: 0`과 `recovered: true`는 구조 무결성을 보장하지 않는다
+14. **표 구조를 바꿨으면 `.hwp` + `.hwpx` 동시 전달**: 사용자가 즉시 대안을 열 수 있게 한다
+15. **전달 전 검증 필수**: `verify_hwpx.py` PASS 없이는 파일을 보내지 않는다
+16. **레이아웃 충실도**: python-hwpx는 레이아웃 엔진이 아님. 페이지 나눔은 한글 앱이 결정
+17. **글꼴 임베딩**: 생성 HWPX에 글꼴 미포함. 열람 환경에 해당 글꼴 필요
+18. **공문서 날짜 형식**: `2026-02-13`이 아닌 `2026. 2. 13.` (월·일 앞 0 생략)
+19. **HWPX ↔ HWP**: python-hwpx는 HWPX만 처리한다. 레거시 `.hwp`는 **0-A단계의 `@rhwp/core` 변환기**(npm 라이브러리, 별도 스킬 아님)로 앞뒤에서 감싼다(사용자에게 수동 변환을 요구하지 않는다)
+20. **왕복은 1회**: `.hwp` → `.hwpx` → 편집 → `.hwp`. 편집 중간에 형식을 오가지 않는다
+21. **변환 손실 보고 필수**: `contentLoss.count > 0`이면 항목을 사용자에게 알리고 진행 여부를 묻는다
+22. **fix_namespaces 호출법**: `exec()` 말고 `subprocess.run()` 사용
+23. **범위 밖 요청 처리**: 누름틀 자동 채우기·메일머지 요청이 오면 **다른 스킬 설치를 안내하지 않는다.** 이 스킬 범위 밖임을 한 줄로 알리고, 대신 가능한 방법(해당 텍스트를 ZIP-level 치환으로 직접 바꾸기)을 제시한다
 
 ---
 
-작성일: 2026-09-01 | 버전: v1.2
+작성일: 2026-09-04 | 버전: v1.3
