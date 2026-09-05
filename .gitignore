@@ -14,3 +14,9 @@ venv/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# 릴리스 작업용 임시 파일 (커밋·푸시 후 삭제)
+_COMMIT-MSG-*.txt
+_PUSH-*.bat
+_STATUS.bat
+_CLEANUP.bat
