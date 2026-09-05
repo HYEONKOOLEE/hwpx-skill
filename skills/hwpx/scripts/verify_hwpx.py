@@ -10,7 +10,7 @@ verify_hwpx.py — HWPX 산출물 무결성 검사 (사용자에게 전달하기
 3. XML 유효성    : 모든 XML 파트가 well-formed인가
 4. 레이아웃 캐시 : linesegarray 잔존 개수(텍스트를 편집했다면 0이어야 함)
 5. 표 구조       : 병합(rowSpan/colSpan) 범위가 표 밖으로 넘치지 않는가  ★ v1.3 신설
-6. 단락 id 중복  : <hp:p id>가 섹션 안에서 유일한가                      ★ v1.3 신설
+6. 단락 id 분포  : <hp:p id> 고유·중복 건수 (진단 정보, FAIL 아님)       ★ v1.3 신설
 7. 이미지 무결성 : content.hpf에 등록된 BinData 항목이 실제로 존재하는가
 8. 본문 통계     : 단락 수 / 이미지 수 / 추출 글자 수
 
@@ -173,16 +173,25 @@ def check(path, base=None, dump=None):
         elif n_tbl:
             print(f"  ✓ 표 구조 정상 ({n_tbl}개 표, 병합 범위 이상 없음)")
 
-        # 6. 단락 id 중복
+        # 6. 단락 id 분포 (진단 정보 — FAIL 사유가 아니다)
+        #
+        # ⚠ 2026-09-05 실측 정정. 한글이 직접 만든 문서도 <hp:p id>를 대량 재사용한다.
+        #   이 스킬 동봉 assets/report-template.hwpx는 단락 103개에 고유 id가 3개뿐이고
+        #   ('2147483648'=0x80000000 69회, '0' 33회) 한글에서 정상적으로 열린다.
+        #   id는 유일 키가 아니라 sentinel 값에 가깝다. 중복을 FAIL로 잡으면 이 스킬이
+        #   동봉한 자기 템플릿조차 FAIL이 되고, R3("PASS 없이는 전달하지 않는다") 때문에
+        #   정상 산출물이 계속 막힌다. 그래서 건수만 보고한다.
         dup_report = []
         for n in sections(z):
             ids = re.findall(r"<\w*:?p\s[^>]*\bid=\"(\d+)\"", z.read(n).decode("utf-8"))
-            dups = [k for k, v in Counter(ids).items() if v > 1]
+            c = Counter(ids)
+            dups = [k for k, v in c.items() if v > 1]
             if dups:
-                dup_report.append(f"{n}: {len(dups)}개 중복 (예: {dups[:5]})")
+                dup_report.append(f"{os.path.basename(n)}: 단락 {len(ids)}개 / 고유 {len(c)}개 "
+                                  f"(재사용 id {len(dups)}종, 예: {dups[:3]})")
         if dup_report:
-            bad("단락 id 중복 — 편집 중 <hp:p>를 복제했다면 id를 새로 부여할 것:\n     "
-                + "\n     ".join(dup_report))
+            print("  · 단락 id 재사용 — 한글 원본도 그렇게 한다(정상):\n     "
+                  + "\n     ".join(dup_report))
         else:
             print("  ✓ 단락 id 유일")
 
