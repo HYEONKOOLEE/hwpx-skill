@@ -1,11 +1,12 @@
 ---
 name: hwpx
-description: "한글 문서(.hwp / .hwpx)를 읽고·편집하고·생성해 저장하는 단독 스킬. 다른 스킬을 함께 설치할 필요가 없다. **.hwp를 그대로 업로드해도 자동으로 .hwpx로 변환해 처리하고, 올린 형식 그대로 되돌려준다**(한컴오피스 불필요). '한글 문서','hwp','hwpx','한글파일','HWP 문서 생성','보고서','공문','기안문','한글로 작성','한글 원고 수정','hwp 편집','hwpx 편집' 등의 요청에 사용. 기존 한글 원고에 내용을 추가·수정하는 작업에도 적용한다. 일반 Word(.docx)는 docx 스킬을 쓸 것."
+description: "한글 문서(.hwp / .hwpx)를 읽고·편집하고·생성해 저장하는 단독 스킬. 다른 스킬을 함께 설치할 필요가 없다. **.hwp를 그대로 업로드해도 자동으로 .hwpx로 변환해 처리하고, 올린 형식 그대로 되돌려준다**(한컴오피스 불필요). '한글 문서','hwp','hwpx','한글파일','HWP 문서 생성','보고서','공문','기안문','사내 규정','매뉴얼','지침서','계약서','한글로 작성','한글 원고 수정','hwp 편집','hwpx 편집' 등의 요청에 사용. 양식 없이 조문형 규정·매뉴얼을 새로 작성하는 작업에도 적용한다(C 워크플로). 일반 Word(.docx)는 docx 스킬을 쓸 것."
 ---
 
 # HWPX 문서 생성·편집 스킬
 
-> **버전** v1.3 · **최종 수정** 2026-09-04 · **변경 이력** `CHANGELOG.md`
+> **버전** v1.4 · **최종 수정** 2026-09-05 · **변경 이력** `CHANGELOG.md`
+> v1.4 변경점: **C. 새 문서 생성 워크플로 신설(R5~R9)** — 양식 없이 `HwpxDocument.new()`로 규정·매뉴얼 같은 조문형 장문을 만들 때의 함정을 규칙으로 못 박는다. **R5(서식 속성 전파)**는 가운데 정렬·페이지나눔이 뒤 단락 수백 개로 번져 문서를 통째로 망가뜨리는데 `verify_hwpx.py`가 잡지 못하는 영역이다. R6은 v1.3 검사 6번이 검출한 id 중복을 자동 보정하고, R7~R9는 용지 속성·검증 대체수단·표 서식 기본값을 정한다.
 > v1.3 변경점: **R4(표 구조 무결성) 신설** — 행·열을 지우거나 추가할 때 세로 병합(rowSpan) 정합성을 함께 맞추지 않으면 한글이 파일을 열지 못한다. `verify_hwpx.py`에 검사 5·6번(표 병합 / 단락 id 중복)을 추가했다.
 > v1.2 변경점: 스킬 범위를 읽기·편집·저장으로 한정 — 다른 스킬로 넘기는 분기 제거, 단독 설치로 완결
 > 설치·사용법은 같은 폴더의 `README.md`를 먼저 보세요.
@@ -20,7 +21,7 @@ HWPX는 한컴오피스 한글의 개방형 문서 포맷이다. 내부는 **ZIP
 |---|---|
 | `.hwp`/`.hwpx` **읽기**(본문·표 텍스트 추출, 전수 조사) | 누름틀(필드) 서식 자동 채우기·메일머지 |
 | **편집**(문자열 치환, 단락 삽입·삭제, 표 조작) | 한글 앱 자동화(매크로·COM 제어) |
-| **생성**(양식 기반 보고서·공문 작성) | PDF 변환, 전자결재 시스템 연동 |
+| **생성**(양식 기반 보고서·공문 / 양식 없는 조문형 규정·매뉴얼) | PDF 변환, 전자결재 시스템 연동 |
 | **저장·검증**(올린 형식 그대로 반환) | Word(.docx) 처리 → `docx` 스킬 |
 
 **이 네 가지는 이 스킬 폴더 하나로 완결된다. 추가 스킬을 설치할 필요가 없다.**
@@ -130,18 +131,21 @@ node "$SKILL_DIR/scripts/hwp_bridge.mjs" to-hwp ./work.hwpx ./최종본.hwp
 
 | 사용자 요청 | 작업 유형 | 따라갈 절차 |
 |---|---|---|
-| "보고서 만들어줘", "공문 써줘", "이 양식으로 채워줘" | **A. 생성 / 템플릿 치환** | 아래 「A. 템플릿 치환 워크플로」 |
+| 양식 파일을 주며 "이 양식으로 채워줘", 기본 양식으로 보고서·공문 작성 | **A. 템플릿 치환** | 아래 「A. 템플릿 치환 워크플로」 |
 | "이 원고 수정해줘", "이 내용 추가해줘", "팩트체크 반영해줘", 완성된 hwpx를 주며 고쳐 달라 | **B. 기존 문서 편집** | **`references/edit-existing.md`를 먼저 읽을 것** |
+| **양식 없이** "규정 만들어줘", "매뉴얼 작성해줘", "지침서 써줘" 등 백지에서 조문형 장문 작성 | **C. 새 문서 생성** | **아래 「C. 새 문서 생성 워크플로」 + R5~R9** |
 
 > **0-A단계를 먼저 통과했다고 전제한다** — 이 시점에서 손에 있는 파일은 반드시 `.hwpx`다.
 >
 > B를 A의 절차로 처리하면 원본 서식이 깨지고 내용이 유실된다. 사용자가 **이미 완성된 원고**를 줬다면 그것은 채울 양식이 아니라 지켜야 할 자산이다.
+>
+> A와 C를 혼동하지 않는다. **사용자가 준 양식이 있으면 무조건 A**다. 양식이 없을 때만 C로 간다.
 
 ---
 
-## 🔴 유형 무관 절대 규칙 4가지
+## 🔴 유형 무관 절대 규칙 (R1~R4)
 
-이 네 가지는 A·B 어느 쪽이든, 문서를 저장할 때마다 예외 없이 적용한다.
+이 네 가지는 A·B·C 어느 쪽이든, 문서를 저장할 때마다 예외 없이 적용한다.
 
 ### R1. 텍스트를 한 글자라도 바꿨으면 레이아웃 캐시를 지운다
 
@@ -169,7 +173,7 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" out.hwpx --base 원본.hwpx
 
 **PASS**가 뜨고 `linesegarray 잔존 0개`를 확인하기 전에는 사용자에게 파일을 보내지 않는다.
 
-### 🆕 R4. 표의 행·열을 지우거나 추가했으면 병합(span) 정합성을 맞춘다
+### R4. 표의 행·열을 지우거나 추가했으면 병합(span) 정합성을 맞춘다
 
 > **이것을 빠뜨리면 한글이 "파일을 읽거나 저장하는데 오류가 있습니다"로 파일 자체를 거부한다.**
 > v1.2까지는 `verify_hwpx.py`도, `@rhwp/core`의 `contentLoss`·`exportHwpVerify`도 이 오류를
@@ -253,9 +257,9 @@ for ti, tbl in enumerate(root.iter(P + "tbl")):
 
 - 보고서 → `assets/report-template.hwpx`
 
-### A-3단계: HwpxDocument.new()는 최후의 수단
+### A-3단계: 양식이 없으면 C 워크플로로
 
-빈 문서 생성은 **아주 단순한 메모·목록 수준**에만 허용한다. 보고서·공문·기안문은 절대 `new()`로 만들지 않는다.
+양식 파일이 있는데도 `HwpxDocument.new()`로 만들지 않는다. 양식이 아예 없는 경우에만 **C. 새 문서 생성 워크플로**를 따르며, 그때는 R5~R9를 반드시 함께 적용한다.
 
 ### 치환 절차
 
@@ -467,6 +471,258 @@ subprocess.run(["python", f"{SKILL_DIR}/scripts/verify_hwpx.py", WORK], check=Tr
 
 ---
 
+# C. 새 문서 생성 워크플로 (양식 없이 백지에서)
+
+규정·매뉴얼·지침서·계약서처럼 **사용자가 양식을 주지 않고 내용만 요구한** 장문 문서를 만들 때의 절차다. `HwpxDocument.new()`로 시작하되, 아래 R5~R9를 지키지 않으면 **문서 전체가 가운데 정렬로 밀리거나, 쪽수가 4배로 늘거나, 한글이 파일을 열지 못한다.** 실제로 전부 겪은 함정이다.
+
+## C-1. 빌더 클래스를 먼저 만든다
+
+단락 하나하나에 `set_paragraph_format`을 직접 호출하지 말고, **문서 요소별 헬퍼(제목·장·조·항·표·별지)를 가진 빌더 클래스를 만들어 그것만 사용한다.** 규칙 위반을 한 곳에서 막을 수 있고, "표 색을 연하게" "본문을 왼쪽 정렬로" 같은 수정 요구가 와도 한 줄만 고치면 전체에 반영된다.
+
+```
+Doc 클래스 구성 예
+  __init__      용지·여백·머리글·바닥글·쪽번호, 글자 스타일 사전, 셀 전용 paraPr 2종(좌/중앙)
+  _p()          모든 단락의 단일 진입점 — R5를 여기서 강제한다
+  chapter()     장 제목 (가운데, 새 쪽)
+  art()         제N조(제목)
+  hang()        ① / 1. / 가. 계층 본문 (내어쓰기)
+  table()       머리행 있는 표
+  strip()       1행짜리 라벨·값 서식 줄
+  sign()        결재란
+  annex()       별표·별지 제목 (새 쪽)
+  save()        R6 → 후처리 3종 일괄 수행
+```
+
+## 🆕 R5. `set_paragraph_format`은 **모든 속성을 매번 명시**한다
+
+> **이 규칙 하나를 빠뜨리면 문서 전체가 망가진다. C 워크플로에서 가장 중요한 규칙이다.**
+> `verify_hwpx.py`는 이것을 검사하지 않는다. 서식은 문법이 아니라 의도의 문제이기 때문이다.
+
+`python-hwpx`는 요청한 서식 조합에 맞는 `paraPr`를 찾아 재사용한다. 그런데 **인자를 생략하면 그 속성은 "상관없음"이 되어, 앞서 만들어 둔 다른 paraPr가 그대로 붙는다.** 표지 제목에 한 번 준 `alignment='CENTER'`, 장 제목에 한 번 준 `page_break_before=True`가 **그 뒤 수백 개 단락에 전파된다.**
+
+실제 증상:
+
+| 생략한 속성 | 증상 |
+|---|---|
+| `alignment` | 조·항·호 본문이 전부 **가운데 정렬**로 나온다. 사용자가 가장 먼저 지적하는 문제 |
+| `page_break_before` | 문단마다 쪽이 넘어가 **35쪽 문서가 153쪽**이 된다 |
+| `indent_left_mm` / `first_line_indent_mm` | 들여쓰기가 엉뚱한 문단에 붙는다 |
+| `spacing_before_pt` / `spacing_after_pt` | 문단 간격이 제멋대로 벌어진다 |
+
+**해결 — 단일 진입점에서 전부 명시한다.**
+
+```python
+def _p(self, text='', style='body', align=None, before=None, after=None,
+       left=None, first=None, page_break=False, line=160):
+    """모든 서식 속성을 항상 명시적으로 전달한다.
+    생략하면 앞서 만든 paraPr(가운데 정렬·페이지나눔 등)이 뒤 단락으로 전파된다."""
+    para = self.d.add_paragraph(text, char_pr_id_ref=self.st[style])
+    self.d.set_paragraph_format(
+        paragraph_index=len(self.d.paragraphs) - 1,
+        line_spacing_percent=line,
+        alignment=align or 'LEFT',                       # ← None 금지
+        spacing_before_pt=0 if before is None else before,
+        spacing_after_pt=0 if after is None else after,
+        indent_left_mm=0 if left is None else left,
+        first_line_indent_mm=0 if first is None else first,
+        page_break_before=bool(page_break),              # ← 항상 True/False
+    )
+    return para
+```
+
+**검증 — 저장 후 정렬·페이지나눔 분포를 반드시 세어 본다.**
+
+```python
+import zipfile, collections
+from lxml import etree
+H = '{http://www.hancom.co.kr/hwpml/2011/head}'
+P = '{http://www.hancom.co.kr/hwpml/2011/paragraph}'
+
+z = zipfile.ZipFile('out.hwpx')
+hr = etree.fromstring(z.read('Contents/header.xml'))
+al = {pp.get('id'): pp.find(H + 'align').get('horizontal')
+      for pp in hr.iter(H + 'paraPr') if pp.find(H + 'align') is not None}
+sec = etree.fromstring(z.read('Contents/section0.xml'))
+
+print(collections.Counter(al.get(p.get('paraPrIDRef')) for p in sec.iter(P + 'p')))
+for p in sec.iter(P + 'p'):                      # 가운데 정렬 단락을 눈으로 확인
+    if al.get(p.get('paraPrIDRef')) == 'CENTER':
+        t = ''.join(x.text or '' for x in p.iter(P + 't')).strip()
+        if t:
+            print('CENTER:', t[:50])
+```
+
+가운데 정렬로 남아야 할 것은 **표지 제목·장 제목·부칙 정도**다. 조문 본문이 목록에 섞여 있으면 R5를 어긴 것이다. 페이지나눔(`breakSetting @pageBreakBefore`)도 같은 방식으로 세어, 장 제목과 별표·별지 수의 합과 일치하는지 확인한다.
+
+## 🆕 R6. `HwpxDocument.new()`가 만든 단락 id 중복은 **검출로 끝내지 말고 보정한다**
+
+`new()`로 만든 문서는 단락 id를 난수로 부여해 **문서당 2~3개꼴로 중복이 발생한다.** 한글이 "파일을 읽거나 저장하는데 오류가 있습니다"로 거부하는 원인이다.
+
+`verify_hwpx.py` v1.3의 검사 6번이 이 중복을 **잡아내지만 고쳐 주지는 않는다.** FAIL을 받고 나서 손으로 찾는 것보다, 저장 직후 자동 보정하는 편이 낫다. 아래 함수를 `save()` 안에 넣는다.
+
+```python
+def dedupe_ids(path):
+    """저장 후 <hp:p id> 중복 제거. mimetype-first + STORED 규약(R2)을 지켜 재패키징한다."""
+    import zipfile, os
+    from lxml import etree
+    P = '{http://www.hancom.co.kr/hwpml/2011/paragraph}'
+    tmp, seen, nxt, fixed = path + '.tmp', set(), [900000000], 0
+    with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, 'w') as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename.startswith('Contents/') and item.filename.endswith('.xml'):
+                root = etree.fromstring(data)
+                for p in root.iter(P + 'p'):
+                    pid = p.get('id')
+                    if pid is None:
+                        continue
+                    if pid in seen:
+                        nxt[0] += 1
+                        p.set('id', str(nxt[0]))
+                        fixed += 1
+                    else:
+                        seen.add(pid)
+                data = (b'<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>'
+                        + etree.tostring(root, encoding='utf-8'))
+            zi = zipfile.ZipInfo(item.filename, date_time=item.date_time)
+            zi.compress_type = (zipfile.ZIP_STORED if item.filename == 'mimetype'
+                                else zipfile.ZIP_DEFLATED)
+            zi.external_attr = item.external_attr
+            zout.writestr(zi, data)
+    os.replace(tmp, path)
+    return fixed
+```
+
+> 구버전(v1.2 이하) `verify_hwpx.py`를 쓰고 있다면 검출조차 되지 않으므로 이 보정이 필수다.
+
+## 🆕 R7. `set_page_setup`에 `orientation`을 주지 않는다
+
+OWPML의 `<hp:pagePr @landscape>`는 `WIDELY` / `NARROWLY`만 허용한다. `orientation='portrait'`를 주면 **`landscape="PORTRAIT"`라는 비표준 값**이 들어간다.
+
+실제 한글이 만든 A4 세로 문서는 `landscape="WIDELY"` + `width=59528 height=84188`(210×297mm)로 저장한다. 즉 **한글은 방향을 폭·높이로 판단한다.** 따라서 `orientation`은 생략하고 용지 크기와 여백만 지정한다.
+
+```python
+d.set_page_setup(paper_size='A4',
+                 margins_mm={'left': 22, 'right': 22, 'top': 20, 'bottom': 18,
+                             'header': 12, 'footer': 12})
+```
+
+## 🆕 R8. 눈으로 볼 수 없다 — LibreOffice는 HWPX를 못 읽는다
+
+`soffice --headless --convert-to pdf out.hwpx`는 **"source file could not be loaded"로 실패한다.** `.hwp`로 변환해도 마찬가지다. 즉 **생성한 HWPX는 렌더링해서 확인할 수 없다.** 대신 다음으로 대체한다.
+
+```bash
+# 1) 기본 검증 (v1.3은 표 병합·id 중복까지 본다)
+python "$SKILL_DIR/scripts/verify_hwpx.py" out.hwpx
+
+# 2) 한글 파서 왕복 — 구조가 실제로 읽히는지 확인
+node ./_bridge/hwp_bridge.mjs to-hwp out.hwpx /tmp/check.hwp
+#    contentLoss.count == 0 / recovered == true / pageCount가 상식적인지 확인
+```
+
+```python
+# 3) 정렬·페이지나눔 분포 (R5의 검증 코드) — verify_hwpx.py가 보지 않는 영역
+# 4) 본문 통독
+from hwpx.document import HwpxDocument
+print(HwpxDocument.open('out.hwpx').export_text()[:2000])
+```
+
+> **쪽수는 가장 민감한 이상 신호다.** 글자 15,000자짜리 규정이 150쪽으로 나오면 R5(페이지나눔 전파)를 의심한다. 대략 **A4 한 쪽에 한글 900~1,200자**가 들어간다고 보면 된다.
+
+## 🆕 R9. 표 색과 정렬의 기본 규약
+
+사용자가 별도로 지정하지 않으면 다음을 기본값으로 한다. 한국 실무 문서에서 가장 무난하고, "머리행이 너무 진하다" / "본문이 왜 가운데냐"는 재작업 요구를 막아 준다.
+
+| 요소 | 기본값 | 이유 |
+|---|---|---|
+| 표 머리행 배경 | **아주 연한 색** `#E9EEF6` | 짙은 남색(`#1F3864`) 바탕에 흰 글씨는 인쇄 시 잉크를 많이 먹고 답답해 보인다 |
+| 표 머리행 글자 | 진한 남색 `#1F3864` 굵게 | 연한 바탕에는 진한 글자 |
+| 라벨 칸(문서정보·결재란) | `#F4F6F9` | 머리행보다 더 연하게 |
+| **표 1행(머리행) 텍스트** | **가운데 정렬** | 항목명이므로 |
+| **표 2행 이후 내용** | **왼쪽 정렬** | 본문이므로 |
+| 1행짜리 서식 줄(라벨·값) | 라벨·값 모두 가운데 | 서식 기입란은 가운데가 자연스럽다 |
+| 본문 조·항·호 | 왼쪽 정렬 | **가운데 정렬은 제목에만 쓴다** |
+| 가운데 정렬 허용 | 표지 제목, 장 제목, 부칙, 박스 제목 | 그 외에는 쓰지 않는다 |
+| 본문 글꼴 | `함초롬바탕` 10.5pt | 한글 기본 탑재 글꼴 |
+| 제목·표 글꼴 | `함초롬돋움` | 본문과 구분 |
+
+**표 셀 정렬은 셀 단락의 `paraPrIDRef`를 직접 바꿔야 한다.** `set_cell_text`는 기본 paraPr(JUSTIFY)를 쓰므로, 셀 전용 paraPr를 좌·중앙 2종 미리 만들어 두고 갈아끼운다.
+
+```python
+# __init__에서 셀 전용 paraPr 2종을 미리 확보한다
+def _make_cell_para_pr(d, alignment):
+    tmp = d.add_paragraph('')
+    d.set_paragraph_format(paragraph_index=len(d.paragraphs) - 1,
+                           alignment=alignment, line_spacing_percent=140,
+                           spacing_before_pt=0, spacing_after_pt=0,
+                           indent_left_mm=0, first_line_indent_mm=0,
+                           page_break_before=False)
+    ref = tmp.element.get('paraPrIDRef')
+    d.remove_paragraph(tmp)
+    return ref
+
+self.cell_left   = _make_cell_para_pr(d, 'LEFT')
+self.cell_center = _make_cell_para_pr(d, 'CENTER')
+
+# 셀에 글자 서식 + 정렬을 함께 입힌다
+def style_cell(self, cell, char_style, center=False):
+    if cell is None:
+        return
+    ref = self.cell_center if center else self.cell_left
+    for p in cell.paragraphs:
+        p.element.set('paraPrIDRef', ref)
+        for run in p.element.iter('{http://www.hancom.co.kr/hwpml/2011/paragraph}run'):
+            run.set('charPrIDRef', char_style)
+
+# 표 전체에 적용 — 1행만 가운데
+for ri in range(t.row_count):
+    for ci in range(t.column_count):
+        head = has_header and ri == 0
+        self.style_cell(t.cell(ri, ci), self.st['th'] if head else self.st['td'], center=head)
+```
+
+배경색은 `t.set_cell_shading(row, col, '#E9EEF6')`으로 지정하고, 열 너비는 `t.set_column_widths([...])`에 HWPUNIT(1mm = 283.465)으로 준다. A4 좌우 여백 22mm 기준 본문 폭은 166mm다. 색 적용 여부는 `header.xml`의 `faceColor` 값으로 확인한다.
+
+## C-2. 조문형 문서의 표준 구성
+
+규정·지침·매뉴얼은 다음 순서를 따르면 사내 결재에 그대로 올릴 수 있다.
+
+```
+표지 제목 + 문서번호
+■ 문서 정보    (문서명·문서번호·제정일·목적·주관·승인권자·보존기간·배포처)
+■ 결 재        (작성 / 검토 / 승인 — 서명란 공백 2줄)
+■ 개정 이력    (개정번호·개정일자·개정내용·작성자·승인자)
+제 1 장  총칙   (목적 / 적용범위 / 용어의 정의 / 다른 규정과의 관계)
+제 2 장 ~       (본문 — 각 장은 새 쪽에서 시작)
+부      칙      (시행일 / 경과조치 / 다른 규정과의 관계)
+[별표 N] ~      (기준표·목록 — 새 쪽)
+[별지 제N호 서식] ~  (기입 서식 — 새 쪽)
+```
+
+- 조문은 `제N조(제목)`을 굵은 고딕 한 줄로 두고, 그 아래 `①②③` → `1. 2. 3.` → `가. 나. 다.` 순으로 계층을 내려간다. 계층마다 내어쓰기(`first_line_indent_mm` 음수)를 준다.
+- 머리글에 `문서명 (문서번호)`, 바닥글에 `작성일 | 버전 | 회사명 (대외비)` + 쪽번호를 넣는다.
+- 법령을 인용할 때는 **작업 시점에 원문을 확인한다.** 조문 번호와 호수는 개정으로 자주 바뀐다.
+- 확정되지 않은 값(금액 한도, 비율, 인원, 담당자)은 **`【확인필요】` 같은 눈에 띄는 표시**를 본문에 남기고, 문서 앞부분에 그 표기 규칙을 안내한다. 빈칸으로 두면 검토자가 놓친다.
+
+## C-3. 저장 파이프라인
+
+```python
+def save(self, path):
+    self.d.save_to_path(path)
+    dedupe_ids(path)                                             # R6
+    subprocess.run([sys.executable, f'{SKILL}/scripts/fix_namespaces.py', path], check=True)
+    subprocess.run([sys.executable, f'{SKILL}/scripts/clear_layout_cache.py', path], check=True)  # R1
+    r = subprocess.run([sys.executable, f'{SKILL}/scripts/verify_hwpx.py', path],
+                       capture_output=True, text=True)           # R3
+    print(r.stdout)
+    if 'PASS' not in r.stdout:
+        raise SystemExit(f'검증 실패: {path}')
+```
+
+이후 R8의 왕복 검증과 정렬·쪽수 확인을 거쳐 전달한다.
+
+---
+
 ## 문서 유형별 스타일 가이드
 
 | 상황 | 읽을 문서 |
@@ -549,9 +805,10 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # �
 >
 > | 항목 | 확인 방법 |
 > |---|---|
+> | **정렬·페이지나눔 속성 전파** | **R5의 분포 검증** — 본문이 가운데로 밀렸는지, 쪽수가 부풀었는지 |
 > | XML 선언 형태 변화 | 원본과 동일한 선언을 붙였는지 확인 |
 > | HWP5 역변환 어댑터의 자체 실패 | `.hwpx`도 함께 전달해 사용자가 대조 |
-> | 실제 한글 앱에서의 열림 여부 | 최종 확인은 사용자가 한글에서 연다 |
+> | 실제 한글 앱에서의 열림 여부 | **R8의 HWP 역변환 왕복** + 최종 확인은 사용자가 한글에서 연다 |
 >
 > **구버전(v1.2 이하) `verify_hwpx.py`를 쓰고 있다면 5·6번을 직접 확인해야 한다.**
 
@@ -565,13 +822,15 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # �
 | **`.hwp`로 돌려줘야 할 때** | **`hwp_bridge.mjs to-hwp` + `verify` 쪽수 확인** |
 | 보고서/공문/양식 문서 생성 | **양식 파일 + ZIP-level 치환** (★ 권장) |
 | **기존 원고 수정·증보** | **`references/edit-existing.md` 절차** |
-| 아주 단순한 문서 | `HwpxDocument.new()` → `.save()` → 후처리 |
-| 표(테이블) 추가 | `doc.add_table(rows, cols)` → `set_cell_text()` |
+| **양식 없이 규정·매뉴얼 생성** | **C 워크플로 + R5~R9** |
+| 표(테이블) 추가 | `d.add_table(rows, cols)` → `set_cell_text()` → `style_cell()` (R9) |
 | **표의 빈 행 삭제** | **R4 — rowSpan 보정 + verify 검사 5번 통과 필수** |
-| 머리글/바닥글 | `doc.set_header_text()` / `doc.set_footer_text()` |
+| 머리글/바닥글/쪽번호 | `d.set_header_text()` / `d.set_footer_text()` / `d.set_page_number()` |
 | 텍스트 검색/추출 | `ObjectFinder(filepath)` |
 | 셀 병합 | `table.merge_cells(row1, col1, row2, col2)` |
 | 글씨 겹침 발생 | `clear_layout_cache.py` |
+| **본문이 전부 가운데 정렬로 나옴** | **R5 — `set_paragraph_format` 인자 생략 여부 확인** |
+| **쪽수가 비정상적으로 많음** | **R5 — `page_break_before` 전파 확인** |
 | **한글이 "파일을 읽거나 저장하는데 오류"** | **아래 트러블슈팅 표** |
 | 전달 전 최종 확인 | `verify_hwpx.py --base 원본` |
 
@@ -598,8 +857,8 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # �
 
 ## 주의사항
 
-1. **작업 유형 판별이 먼저**: 완성 원고 수정(B)을 템플릿 치환(A) 절차로 처리하지 않는다
-2. **양식 우선**: 사용자 업로드 양식 > 기본 제공 양식 > `HwpxDocument.new()`
+1. **작업 유형 판별이 먼저**: A(양식 치환)·B(기존 편집)·C(신규 생성)를 혼동하지 않는다
+2. **양식 우선**: 사용자 업로드 양식 > 기본 제공 양식 > C 워크플로
 3. **ZIP-level 치환 우선**: `HwpxDocument.open()`보다 안전하고 호환성이 높다
 4. **양식 텍스트 조사 필수**: 치환 전에 반드시 ObjectFinder로 전수 조사
 5. **표를 건드릴 거면 표 구조부터 조사**: `rowSpan`이 2 이상인 셀 위치를 먼저 파악한다 (R4)
@@ -610,18 +869,23 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # �
 10. **셀 높이는 추정 금지**: 캐시만 지우면 한글이 자동으로 맞춘다
 11. **재패키징 규약**: mimetype은 첫 항목 + 무압축(ZIP_STORED)
 12. **행 삭제 시 병합 보정 필수**: `rowSpan`·`rowCnt`를 맞추고 검증으로 확인 (R4). 애매하면 빈 행으로 남긴다
-13. **검증 통과 ≠ 열린다**: `contentLoss: 0`과 `recovered: true`는 구조 무결성을 보장하지 않는다
-14. **표 구조를 바꿨으면 `.hwp` + `.hwpx` 동시 전달**: 사용자가 즉시 대안을 열 수 있게 한다
-15. **전달 전 검증 필수**: `verify_hwpx.py` PASS 없이는 파일을 보내지 않는다
-16. **레이아웃 충실도**: python-hwpx는 레이아웃 엔진이 아님. 페이지 나눔은 한글 앱이 결정
-17. **글꼴 임베딩**: 생성 HWPX에 글꼴 미포함. 열람 환경에 해당 글꼴 필요
-18. **공문서 날짜 형식**: `2026-02-13`이 아닌 `2026. 2. 13.` (월·일 앞 0 생략)
-19. **HWPX ↔ HWP**: python-hwpx는 HWPX만 처리한다. 레거시 `.hwp`는 **0-A단계의 `@rhwp/core` 변환기**(npm 라이브러리, 별도 스킬 아님)로 앞뒤에서 감싼다(사용자에게 수동 변환을 요구하지 않는다)
-20. **왕복은 1회**: `.hwp` → `.hwpx` → 편집 → `.hwp`. 편집 중간에 형식을 오가지 않는다
-21. **변환 손실 보고 필수**: `contentLoss.count > 0`이면 항목을 사용자에게 알리고 진행 여부를 묻는다
-22. **fix_namespaces 호출법**: `exec()` 말고 `subprocess.run()` 사용
-23. **범위 밖 요청 처리**: 누름틀 자동 채우기·메일머지 요청이 오면 **다른 스킬 설치를 안내하지 않는다.** 이 스킬 범위 밖임을 한 줄로 알리고, 대신 가능한 방법(해당 텍스트를 ZIP-level 치환으로 직접 바꾸기)을 제시한다
+13. **`set_paragraph_format`은 모든 속성 명시** (R5) — C 워크플로 최대의 함정. 생략하면 가운데 정렬·페이지나눔이 뒤 단락으로 전파된다. **검증 스크립트가 잡지 못하는 영역이다**
+14. **`HwpxDocument.new()` 문서는 단락 id 자동 보정** (R6) — 검사 6번이 검출은 하지만 고쳐 주지는 않는다
+15. **`set_page_setup`에 `orientation` 인자 사용 금지** (R7) — 비표준 `landscape="PORTRAIT"`가 들어간다
+16. **표 색은 연하게, 1행은 가운데, 나머지는 왼쪽** (R9). 짙은 남색 머리행 + 흰 글씨는 쓰지 않는다
+17. **LibreOffice로 HWPX/HWP를 렌더링할 수 없다** (R8). 눈으로 보는 대신 검증 스크립트·텍스트 추출·HWP 역변환 왕복으로 확인한다
+18. **검증 통과 ≠ 열린다**: `contentLoss: 0`과 `recovered: true`는 구조 무결성을 보장하지 않는다
+19. **표 구조를 바꿨으면 `.hwp` + `.hwpx` 동시 전달**: 사용자가 즉시 대안을 열 수 있게 한다
+20. **전달 전 검증 필수**: `verify_hwpx.py` PASS 없이는 파일을 보내지 않는다
+21. **레이아웃 충실도**: python-hwpx는 레이아웃 엔진이 아님. 페이지 나눔은 한글 앱이 결정
+22. **글꼴 임베딩**: 생성 HWPX에 글꼴 미포함. 열람 환경에 해당 글꼴 필요. 기본은 `함초롬바탕`(본문)·`함초롬돋움`(제목·표)
+23. **공문서 날짜 형식**: `2026-02-13`이 아닌 `2026. 2. 13.` (월·일 앞 0 생략)
+24. **HWPX ↔ HWP**: python-hwpx는 HWPX만 처리한다. 레거시 `.hwp`는 **0-A단계의 `@rhwp/core` 변환기**(npm 라이브러리, 별도 스킬 아님)로 앞뒤에서 감싼다(사용자에게 수동 변환을 요구하지 않는다)
+25. **왕복은 1회**: `.hwp` → `.hwpx` → 편집 → `.hwp`. 편집 중간에 형식을 오가지 않는다
+26. **변환 손실 보고 필수**: `contentLoss.count > 0`이면 항목을 사용자에게 알리고 진행 여부를 묻는다
+27. **fix_namespaces 호출법**: `exec()` 말고 `subprocess.run()` 사용
+28. **범위 밖 요청 처리**: 누름틀 자동 채우기·메일머지 요청이 오면 **다른 스킬 설치를 안내하지 않는다.** 이 스킬 범위 밖임을 한 줄로 알리고, 대신 가능한 방법(해당 텍스트를 ZIP-level 치환으로 직접 바꾸기)을 제시한다
 
 ---
 
-작성일: 2026-09-04 | 버전: v1.3
+작성일: 2026-09-05 | 버전: v1.4
