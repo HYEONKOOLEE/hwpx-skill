@@ -58,5 +58,5 @@ echo "  2) 도구를 재시작한 뒤 이렇게 요청해 보세요"
 echo '       "이 내용으로 한글 문서 만들어줘"'
 echo
 echo "  Cowork(클로드 데스크톱 앱)에서 쓰려면 이 스크립트가 아니라"
-echo "  dist/hwpx-v1.4.0.skill 파일을 대화창에 올려 저장하세요."
+echo "  dist/hwpx-v1.4.1.skill 파일을 대화창에 올려 저장하세요."
 echo
