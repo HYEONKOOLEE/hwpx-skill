@@ -71,6 +71,41 @@
         "수정 전후 본문 텍스트가 문자 단위로 동일함을 확인한다",
         "verify_hwpx.py 검증이 PASS다"
       ]
+    },
+    {
+      "id": 6,
+      "prompt": "첨부한 한글 파일 검증만 해줘. verify_hwpx.py 결과 그대로 보여줘.",
+      "expected_output": "verify_hwpx.py 출력 원문 + PASS 판정 (파일 수정 없음)",
+      "files": [
+        "evals/fixtures/sample-manual-17tables.hwpx"
+      ],
+      "notes": "실전 업무편람(표 17개·단락 525개·이미지 참조 4건)을 anonymize_hwpx.py로 익명화한 회귀 테스트 고정 샘플. v1.3의 '단락 id 중복 = FAIL' 오판정을 재현·차단하기 위해 추가(v1.4.2).",
+      "assertions": [
+        "verify_hwpx.py 최종 판정이 PASS다",
+        "표 17개, 병합 범위 이상 없음으로 보고된다",
+        "단락 525개 / 고유 id 3개(재사용 id 예: 2147483648)를 FAIL이 아닌 진단 정보(·)로만 보고한다 — v1.4.1 정정 사항의 회귀 검사",
+        "이미지 참조 4건 모두 존재로 보고된다",
+        "linesegarray 525개 잔존을 경고(⚠)로만 안내하고, 사용자가 편집을 요청하지 않았으므로 clear_layout_cache.py를 실행하거나 파일을 수정하지 않는다",
+        "글자 수가 8734로 보고된다 (익명화 샘플은 원본과 글자 수가 동일하다)"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "첨부한 한글 파일에서 세 번째 표의 첫 번째 데이터 행 텍스트를 '검토 완료'로 바꿔줘. 나머지는 그대로 두고.",
+      "expected_output": "해당 셀만 수정된 .hwpx 파일 (표 구조·이미지·서식 불변)",
+      "files": [
+        "evals/fixtures/sample-manual-17tables.hwpx"
+      ],
+      "notes": "대량 병합 표가 있는 실전 구조에서 B(기존 문서 편집) 절차와 R1~R4가 지켜지는지 확인한다(v1.4.2).",
+      "assertions": [
+        "작업 유형을 B(기존 문서 편집)로 판별하고 references/edit-existing.md 절차를 따른다",
+        "편집 전에 표 구조(rowSpan/colSpan)를 조사하고, 행·열을 추가·삭제하지 않는다",
+        "새 텍스트에 기존 셀의 paraPrIDRef/charPrIDRef를 재사용한다",
+        "clear_layout_cache.py를 실행해 linesegarray 잔존이 0개다 (R1)",
+        "재패키징 시 mimetype이 첫 항목이며 ZIP_STORED다 (R2)",
+        "verify_hwpx.py --base 원본 검증이 PASS이고, 표 17개·이미지 참조 4건이 그대로다 (R3·R4)",
+        "지정한 셀 외의 <hp:t> 텍스트는 원본과 문자 단위로 동일하다"
+      ]
     }
   ]
 }

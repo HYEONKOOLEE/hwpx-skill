@@ -9,6 +9,7 @@ venv/
 /*.hwp
 !skills/hwpx/assets/*.hwpx
 !skills/hwpx/assets/*.hwp
+!skills/hwpx/evals/fixtures/*.hwpx
 
 # OS
 .DS_Store

@@ -3,6 +3,15 @@
 스킬 자체의 변경 이력은 `skills/hwpx/CHANGELOG.md`를 보세요.
 이 파일은 **저장소 구조·배포 방식**의 변경만 기록합니다.
 
+## v1.4.2 — 2026-09-05
+
+스킬 v1.4.2(실전 문서 회귀 테스트 추가)를 반영하고 배포 파일을 빌드했다.
+
+- `skills/hwpx/evals/fixtures/` 신설 — 익명화된 실전 샘플 보관. `.gitignore`에 `!skills/hwpx/evals/fixtures/*.hwpx` 예외 추가
+- `dist/hwpx-v1.4.2.skill` / `.zip` 빌드, `install.ps1`·`install.sh`·README의 배포 파일명 갱신
+- `.claude-plugin/plugin.json`·`marketplace.json` 버전 1.4.2
+- (83ad1e2) `install.ps1`을 UTF-8 BOM으로 저장 — Windows PowerShell 5.1이 BOM 없는 UTF-8을 CP949로 읽어 한글 문자열이 깨지며 구문 오류가 나던 문제. 파일 개수 표시(`$($count)개`)와 따옴표 이스케이프(`` `" ``)도 수정
+
 ## v1.4.1 — 2026-09-05
 
 스킬 v1.4.1(검사 6번 판정 정정)을 반영하고, **v1.4.0에서 빠져 있던 배포 파일을 실제로 빌드했다.**
