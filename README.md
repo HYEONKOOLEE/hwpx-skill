@@ -24,7 +24,7 @@
 
 파일을 주고받을 필요 없이 **아래 링크 하나만 공유**하면 됩니다.
 
-**📥 다운로드: https://github.com/HYEONKOOLEE/hwpx-skill/raw/main/dist/hwpx-v1.4.2.skill**
+**📥 다운로드: https://github.com/HYEONKOOLEE/hwpx-skill/releases/download/v1.4.2/hwpx-v1.4.2.skill**
 
 1. 위 링크를 눌러 `hwpx-v1.4.2.skill` 파일을 내려받습니다 (확장자를 바꾸지 마세요)
 2. Claude 앱 왼쪽 메뉴 **사용자 지정** → **스킬** 탭 → 오른쪽 위 **추가 → 스킬 업로드**
@@ -120,7 +120,7 @@ chmod +x install.sh
 
 코워크는 폴더 복사가 아니라 **파일 업로드** 방식입니다. 맨 위 **⚡ 가장 빠른 설치**와 같습니다.
 
-1. `dist/hwpx-v1.4.2.skill` 파일을 내려받습니다 ([바로 받기](https://github.com/HYEONKOOLEE/hwpx-skill/raw/main/dist/hwpx-v1.4.2.skill))
+1. `dist/hwpx-v1.4.2.skill` 파일을 내려받습니다 ([바로 받기](https://github.com/HYEONKOOLEE/hwpx-skill/releases/download/v1.4.2/hwpx-v1.4.2.skill))
 2. Claude 앱 **사용자 지정 → 스킬 → 추가 → 스킬 업로드**에서 파일을 선택합니다
    (대화창에 파일을 올린 뒤 **저장** 버튼을 눌러도 됩니다)
 
