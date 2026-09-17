@@ -3,6 +3,15 @@
 스킬 자체의 변경 이력은 `skills/hwpx/CHANGELOG.md`를 보세요.
 이 파일은 **저장소 구조·배포 방식**의 변경만 기록합니다.
 
+## v1.5.0 — 2026-09-17
+
+스킬 v1.5.0(`.hwp` 변환 엔진 동봉)을 반영하고 배포 파일을 빌드했다.
+
+- `skills/hwpx/vendor/rhwp/` 신설 — 변환 엔진 동봉으로 설치 시 npm·네트워크 불필요. 배포 파일 용량 약 10MB 증가
+- `dist/hwpx-v1.5.0.skill` / `.zip` 빌드, `install.ps1`·`install.sh`·README의 배포 파일명 갱신
+- README 의존 패키지 절에서 `npm i @rhwp/core` 및 관련 안내 박스 삭제
+- `.claude-plugin/plugin.json`·`marketplace.json` 버전 1.5.0
+
 ## v1.4.2 — 2026-09-05
 
 스킬 v1.4.2(실전 문서 회귀 테스트 추가)를 반영하고 배포 파일을 빌드했다.

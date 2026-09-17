@@ -1,5 +1,35 @@
 # 변경 이력
 
+## v1.5.0 — 2026-09-17 (`.hwp` 변환 엔진 동봉 · 설치 시 네트워크 불필요)
+
+스킬의 문서 처리 규칙은 바뀌지 않았다. **설치 경험**을 고친 패치다.
+
+### 배경
+
+`.hwp` ↔ `.hwpx` 변환은 `@rhwp/core`(Rust+WASM 파서)에 의존했고, SKILL.md가 `npm i @rhwp/core`를
+설치 명령으로 안내했다. 그 결과 두 가지 문제가 반복됐다.
+
+1. 샌드박스형 AI 도구(Claude·ChatGPT 등)는 npm 레지스트리 접근이 막힌 경우가 많아 설치 단계에서
+   "`rhwp` 설치에 실패했다"는 안내가 붙었고, 이것이 사용자에게 "뭔가 빠졌다"는 혼동을 줬다.
+2. 패키지 이름 `rhwp`가 별개 도구(누름틀 채우기 CLI·스킬)와 겹쳐 "다른 스킬도 깔아야 하나"라는
+   오해가 v1.2의 안내 박스로도 완전히 사라지지 않았다.
+
+### 변경
+
+- **`vendor/rhwp/` 신설** — `@rhwp/core` 0.8.6(MIT)의 런타임 파일 4개(`rhwp.js`, `rhwp_bg.wasm`,
+  `package.json`, `LICENSE`)를 스킬 폴더에 동봉. 외부 의존성 0개, 약 10MB.
+- **`scripts/hwp_bridge.mjs`** — 동봉본을 먼저 로드하고, 없을 때만 npm 설치본을 찾는다(폴백).
+  둘 다 없으면 종료코드 4와 함께 기대 경로를 출력한다. 출력 JSON에 `engine: vendored|npm` 필드 추가.
+- **SKILL.md·README.md** — `npm i @rhwp/core` 명령, "`@rhwp/core`는 별도 스킬이 아니다" 안내 박스,
+  "npm 실패 시 수동 저장 요청" 규칙을 모두 삭제. 설치 항목은 `pip install python-hwpx` 하나로 명시.
+  주의사항 24번을 "동봉 변환기"로 갱신, 종료코드 4 처리 규칙 추가.
+- 검증: `assets/form2.hwp`로 오프라인 왕복(`to-hwpx` → `verify_hwpx.py` PASS → `to-hwp`)
+  `contentLoss 0` · `pageCount 3→3` · `recovered: true` 확인.
+
+### 손대지 않은 것
+
+- 0-A 게이트 절차, 산출 형식 규약(올린 형식 그대로 반환), R1~R9, `references/`·`evals/`·`assets/`.
+
 ## v1.4.2 — 2026-09-05 (실전 문서 회귀 테스트 추가)
 
 스킬의 동작 규칙은 바뀌지 않았다. **"고친 뒤 예전에 되던 파일이 여전히 되는가"를 자동으로

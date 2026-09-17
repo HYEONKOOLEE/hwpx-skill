@@ -5,7 +5,8 @@ description: "한글 문서(.hwp / .hwpx)를 읽고·편집하고·생성해 저
 
 # HWPX 문서 생성·편집 스킬
 
-> **버전** v1.4.2 · **최종 수정** 2026-09-05 · **변경 이력** `CHANGELOG.md`
+> **버전** v1.5.0 · **최종 수정** 2026-09-17 · **변경 이력** `CHANGELOG.md`
+> v1.5.0 변경점: **`.hwp` 변환 엔진 동봉** — `vendor/rhwp/`에 변환 엔진(Rust+WASM)을 내장해 `npm i` 단계를 없앴다. 설치 시 네트워크가 없어도 `.hwp` 입출력이 동작하고, "rhwp 설치 실패" 같은 안내가 나올 여지가 사라졌다. 문서에서 npm·외부 패키지 언급을 전부 제거했다. 문서 처리 규칙은 바뀌지 않았다.
 > v1.4.2 변경점: **실전 문서 회귀 테스트 추가** — 표 17개·단락 525개·id 재사용 구조를 가진 실전 업무편람을 `scripts/anonymize_hwpx.py`로 익명화해 `evals/fixtures/`에 고정 샘플로 넣고, evals 6번(검증형)·7번(편집형)을 신설했다. v1.3의 '단락 id 중복 = FAIL' 오판정 같은 회귀를 `verify_hwpx.py` 수정 직후 잡아내기 위한 장치다. 스킬 동작 규칙은 바뀌지 않았다.
 > v1.4 변경점: **C. 새 문서 생성 워크플로 신설(R5~R9)** — 양식 없이 `HwpxDocument.new()`로 규정·매뉴얼 같은 조문형 장문을 만들 때의 함정을 규칙으로 못 박는다. **R5(서식 속성 전파)**는 가운데 정렬·페이지나눔이 뒤 단락 수백 개로 번져 문서를 통째로 망가뜨리는데 `verify_hwpx.py`가 잡지 못하는 영역이다. R6은 단락 id를 정리하는 안전장치이고, R7~R9는 용지 속성·검증 대체수단·표 서식 기본값을 정한다.
 > v1.3 변경점: **R4(표 구조 무결성) 신설** — 행·열을 지우거나 추가할 때 세로 병합(rowSpan) 정합성을 함께 맞추지 않으면 한글이 파일을 열지 못한다. `verify_hwpx.py`에 검사 5번(표 병합 정합성)을 FAIL 조건으로 추가하고, 6번으로 단락 id 분포를 진단 정보로 낸다.
@@ -31,22 +32,12 @@ HWPX는 한컴오피스 한글의 개방형 문서 포맷이다. 내부는 **ZIP
 ## 설치
 
 ```bash
-pip install python-hwpx --break-system-packages       # HWPX 처리 (필수)
-npm i @rhwp/core                                       # .hwp 입력을 받을 때만 (0-A단계)
+pip install python-hwpx --break-system-packages       # HWPX 처리 (유일한 설치 항목)
 ```
 
-> 표 구조를 코드로 다룰 때는 `lxml`이 편하다(`pip install lxml`). `scripts/`의 검증 도구는 표준 라이브러리만 쓰므로 별도 설치가 필요 없다.
+**설치는 위 한 줄이 전부다.** `.hwp` ↔ `.hwpx` 변환 엔진은 이 스킬 폴더의 `vendor/rhwp/`에 **동봉**되어 있으므로 npm 설치·네트워크 접속이 필요 없다. 설치 과정에서 `npm`을 실행하거나 다른 패키지·스킬을 찾지 않는다.
 
-> ### ⚠️ `@rhwp/core`는 npm 라이브러리다 — 설치할 "다른 스킬"이 아니다
->
-> 이름이 비슷해 오해가 잦다. 정리하면:
->
-> | 이름 | 정체 | 이 스킬과의 관계 |
-> |---|---|---|
-> | **`@rhwp/core`** | npm 패키지(Rust+WASM 파서) | **이 스킬의 내부 의존성.** `npm i` 한 줄로 끝. 0-A단계 `.hwp` 변환에만 쓴다 |
-> | `rhwp` CLI / 관련 별도 스킬 | 누름틀 채우기·메일머지용 **다른 도구** | **무관하다. 설치하지 않는다.** 이 스킬은 그쪽을 호출하지 않는다 |
->
-> `npm i @rhwp/core`가 실패해도 `.hwpx` 작업은 전부 정상 동작한다. 실패는 `.hwp` 직접 입력에만 영향을 준다.
+> 표 구조를 코드로 다룰 때는 `lxml`이 편하다(`pip install lxml`). `scripts/`의 검증 도구는 표준 라이브러리만 쓰므로 별도 설치가 필요 없다.
 
 > 이 문서에서 `$SKILL_DIR`는 이 스킬 폴더의 실제 경로다(환경에 따라 `/mnt/skills/user/hwpx` 또는 `~/.claude/skills/hwpx`). 스크립트를 호출하기 전에 경로를 한 번 확인한다.
 
@@ -70,15 +61,9 @@ file 업로드파일.hwp          # "Hancom HWP ... version 5.0" 이면 HWP5 바
 | `.hwp` (HWP5) | **아래 변환 절차 실행 → `.hwpx` 확보 후** 0단계로 |
 | `.hml` | 위 변환기가 함께 처리한다(`to-hwpx` 동일) |
 
-### 변환기 설치 (작업 폴더에서 1회)
+### 변환기 — 동봉되어 있다, 설치 단계 없음
 
-`@rhwp/core`는 Rust+WASM 기반 HWP/HWPX 파서 **라이브러리**로, **한컴오피스 없이** HWP5 ↔ HWPX 상호 변환을 한다. 이 스킬이 직접 `require`해 쓰는 의존성이며, 사용자가 별도의 스킬이나 CLI를 설치할 필요는 없다.
-
-```bash
-mkdir -p ./_bridge && cd ./_bridge && npm init -y >/dev/null && npm i @rhwp/core
-```
-
-변환 스크립트는 `$SKILL_DIR/scripts/hwp_bridge.mjs`를 그대로 쓴다.
+변환 엔진(Rust+WASM 기반 HWP5 ↔ HWPX 파서)은 `$SKILL_DIR/vendor/rhwp/`에 동봉되어 있고, `$SKILL_DIR/scripts/hwp_bridge.mjs`가 이를 직접 로드한다. **한컴오피스·npm·네트워크 모두 불필요**하며 Node.js만 있으면 된다. 아무것도 설치하지 말고 바로 아래 실행 단계로 간다.
 
 ### 실행
 
@@ -94,7 +79,8 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" ./work.hwpx        # 변환 직후 1�
   계속할지 물어본다. 조용히 진행하지 않는다.
 - `verify_hwpx.py`가 FAIL이면 변환 실패다. 사용자에게 "한글에서 직접 `.hwpx`로
   저장해 다시 올려달라"고 요청한다(최후 수단).
-- `npm i`가 네트워크 문제로 실패하면 변환할 수 없다. 위와 같이 수동 저장을 요청한다.
+- 종료코드 4("변환 엔진을 찾을 수 없습니다")는 `vendor/rhwp/`가 빠진 불완전 설치다. 스킬 재설치를 안내하고, 당장 급하면 위와 같이 수동 저장을 요청한다.
+- 출력 JSON의 `engine` 값은 `vendored`가 정상이다.
 
 > ⚠️ **`contentLoss: 0` + `recovered: true`는 "한글에서 열린다"는 뜻이 아니다.**
 > 이 리포트는 텍스트·쪽수 보존만 본다. 표 병합 같은 구조 무결성은 검사하지 않는다 → **R4** 참조.
@@ -178,7 +164,7 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" out.hwpx --base 원본.hwpx
 ### R4. 표의 행·열을 지우거나 추가했으면 병합(span) 정합성을 맞춘다
 
 > **이것을 빠뜨리면 한글이 "파일을 읽거나 저장하는데 오류가 있습니다"로 파일 자체를 거부한다.**
-> v1.2까지는 `verify_hwpx.py`도, `@rhwp/core`의 `contentLoss`·`exportHwpVerify`도 이 오류를
+> v1.2까지는 `verify_hwpx.py`도, 변환기(`hwp_bridge.mjs`)의 `contentLoss`·`exportHwpVerify`도 이 오류를
 > 잡지 못하고 **전부 PASS를 줬다.** v1.3에서 `verify_hwpx.py` 검사 5번으로 추가했다.
 
 #### 무슨 일이 일어나는가
@@ -620,7 +606,7 @@ d.set_page_setup(paper_size='A4',
 python "$SKILL_DIR/scripts/verify_hwpx.py" out.hwpx
 
 # 2) 한글 파서 왕복 — 구조가 실제로 읽히는지 확인
-node ./_bridge/hwp_bridge.mjs to-hwp out.hwpx /tmp/check.hwp
+node "$SKILL_DIR/scripts/hwp_bridge.mjs" to-hwp out.hwpx /tmp/check.hwp
 #    contentLoss.count == 0 / recovered == true / pageCount가 상식적인지 확인
 ```
 
@@ -886,7 +872,7 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # �
 21. **레이아웃 충실도**: python-hwpx는 레이아웃 엔진이 아님. 페이지 나눔은 한글 앱이 결정
 22. **글꼴 임베딩**: 생성 HWPX에 글꼴 미포함. 열람 환경에 해당 글꼴 필요. 기본은 `함초롬바탕`(본문)·`함초롬돋움`(제목·표)
 23. **공문서 날짜 형식**: `2026-02-13`이 아닌 `2026. 2. 13.` (월·일 앞 0 생략)
-24. **HWPX ↔ HWP**: python-hwpx는 HWPX만 처리한다. 레거시 `.hwp`는 **0-A단계의 `@rhwp/core` 변환기**(npm 라이브러리, 별도 스킬 아님)로 앞뒤에서 감싼다(사용자에게 수동 변환을 요구하지 않는다)
+24. **HWPX ↔ HWP**: python-hwpx는 HWPX만 처리한다. 레거시 `.hwp`는 **0-A단계의 동봉 변환기**(`vendor/rhwp/`, 설치 불필요)로 앞뒤에서 감싼다(사용자에게 수동 변환을 요구하지 않는다)
 25. **왕복은 1회**: `.hwp` → `.hwpx` → 편집 → `.hwp`. 편집 중간에 형식을 오가지 않는다
 26. **변환 손실 보고 필수**: `contentLoss.count > 0`이면 항목을 사용자에게 알리고 진행 여부를 묻는다
 27. **fix_namespaces 호출법**: `exec()` 말고 `subprocess.run()` 사용
@@ -894,4 +880,4 @@ python "$SKILL_DIR/scripts/verify_hwpx.py" output.hwpx --base 원본.hwpx   # �
 
 ---
 
-작성일: 2026-09-05 | 버전: v1.4.2
+작성일: 2026-09-17 | 버전: v1.5.0

@@ -6,9 +6,13 @@
 
 **클로드 코드(Claude Code) · 코워크(Cowork) · 코덱스(Codex CLI)** 세 환경에서 모두 설치할 수 있습니다.
 
-> **버전** v1.4.2 · **최종 수정** 2026-09-05
+> **버전** v1.5.0 · **최종 수정** 2026-09-17
 >
 > **이 저장소 하나로 완결됩니다. 함께 설치해야 하는 다른 스킬은 없습니다.**
+>
+> **v1.5.0 변경점**: `.hwp` ↔ `.hwpx` **변환 엔진을 스킬 안에 동봉**했습니다(`skills/hwpx/vendor/rhwp/`).
+> 설치 시 npm·인터넷 연결이 필요 없고, "rhwp 설치 실패" 같은 안내가 나올 여지가 사라졌습니다.
+> 문서 처리 규칙은 그대로입니다.
 >
 > **v1.4 변경점**: **새 문서 생성 워크플로(C)** 를 신설했습니다. 양식 없이 처음부터 만드는
 > 사내 규정·매뉴얼에서, `set_paragraph_format()`의 인자를 생략하면 그 속성을 가진 기존 서식이
@@ -24,9 +28,13 @@
 
 파일을 주고받을 필요 없이 **아래 링크 하나만 공유**하면 됩니다.
 
-**📥 다운로드: https://github.com/HYEONKOOLEE/hwpx-skill/releases/download/v1.4.2/hwpx-v1.4.2.skill**
+**📥 다운로드: https://github.com/HYEONKOOLEE/hwpx-skill/releases/download/v1.5.0/hwpx-v1.5.0.skill**
 
-1. 위 링크를 눌러 `hwpx-v1.4.2.skill` 파일을 내려받습니다 (확장자를 바꾸지 마세요)
+> ⚠️ **저장소 초록색 「Code → Download ZIP」 버튼으로 받은 파일(`hwpx-skill-main.zip`)은 스킬로 업로드되지 않습니다.**
+> 저장소 전체가 `hwpx-skill-main/` 폴더 아래 묶여 있어 `SKILL.md`가 루트에 없기 때문입니다.
+> 반드시 위 릴리스 링크의 `.skill`(또는 `dist/`의 `.zip`)을 받으세요. 둘은 내용이 같고 확장자만 다릅니다.
+
+1. 위 링크를 눌러 `hwpx-v1.5.0.skill` 파일을 내려받습니다 (확장자를 바꾸지 마세요)
 2. Claude 앱 왼쪽 메뉴 **사용자 지정** → **스킬** 탭 → 오른쪽 위 **추가 → 스킬 업로드**
 3. 내려받은 `.skill` 파일을 선택하면 끝 — **내 것** 탭에 `hwpx`가 나타나고 토글이 켜져 있으면 바로 사용됩니다
 4. 새 대화에서 "이 내용으로 한글 파일 만들어줘"라고 요청하면 자동으로 동작합니다
@@ -120,7 +128,7 @@ chmod +x install.sh
 
 코워크는 폴더 복사가 아니라 **파일 업로드** 방식입니다. 맨 위 **⚡ 가장 빠른 설치**와 같습니다.
 
-1. `dist/hwpx-v1.4.2.skill` 파일을 내려받습니다 ([바로 받기](https://github.com/HYEONKOOLEE/hwpx-skill/releases/download/v1.4.2/hwpx-v1.4.2.skill))
+1. `dist/hwpx-v1.5.0.skill` 파일을 내려받습니다 ([바로 받기](https://github.com/HYEONKOOLEE/hwpx-skill/releases/download/v1.5.0/hwpx-v1.5.0.skill))
 2. Claude 앱 **사용자 지정 → 스킬 → 추가 → 스킬 업로드**에서 파일을 선택합니다
    (대화창에 파일을 올린 뒤 **저장** 버튼을 눌러도 됩니다)
 
@@ -130,25 +138,17 @@ chmod +x install.sh
 
 ### 의존 패키지
 
-문서를 실제로 만들 때 아래 패키지가 필요합니다. 에이전트가 알아서 설치하지만, 막히면 직접 실행하세요.
+문서를 실제로 만들 때 아래 패키지 **하나**가 필요합니다. 에이전트가 알아서 설치하지만, 막히면 직접 실행하세요.
 
 ```bash
 pip install python-hwpx
 # 시스템 파이썬이 보호돼 있다면
 pip install python-hwpx --break-system-packages
-
-# .hwp 파일을 직접 올려서 쓸 때만 (생략해도 .hwpx 작업은 전부 정상 동작)
-npm i @rhwp/core
 ```
 
-> ### ⚠️ `@rhwp/core`는 npm 패키지입니다 — 설치할 "다른 스킬"이 아닙니다
->
-> 이름 때문에 "rhwp 스킬도 같이 깔아야 하나?" 하는 오해가 자주 생깁니다. 정리하면:
->
-> | 이름 | 정체 | 필요 여부 |
-> |---|---|---|
-> | **`@rhwp/core`** | npm 라이브러리(Rust+WASM HWP 파서) | `.hwp`를 직접 올릴 때만. `npm i` 한 줄 |
-> | `rhwp` CLI · 누름틀 채우기 스킬 | 메일머지용 **별개 도구** | **불필요.** 이 스킬과 무관합니다 |
+> **`.hwp` ↔ `.hwpx` 변환 엔진은 스킬 안에 내장되어 있습니다(v1.5.0~).**
+> `skills/hwpx/vendor/rhwp/`에 변환 엔진(Rust+WASM)이 동봉되어 있어 npm 설치·인터넷 연결이 필요 없습니다.
+> 설치 도중 "추가로 무엇을 깔아야 한다"거나 "일부 설치에 실패했다"는 안내가 나온다면 그 안내가 잘못된 것입니다.
 
 ---
 
@@ -177,11 +177,12 @@ hwpx-skill/
 │   ├── CHANGELOG.md                스킬 변경 이력
 │   ├── references/                 서식 규격·편집 절차 4종
 │   ├── scripts/                    후처리·검증·변환·익명화 스크립트 6종
+│   ├── vendor/rhwp/                .hwp↔.hwpx 변환 엔진 동봉 (설치 불필요)
 │   ├── assets/                     공공기관 표준 양식 2종
 │   └── evals/                      동작 검증 테스트 케이스 7종 + 실전 고정 샘플
 ├── dist/                         ← 코워크 업로드용 배포 파일
-│   ├── hwpx-v1.4.2.skill
-│   └── hwpx-v1.4.2.zip
+│   ├── hwpx-v1.5.0.skill
+│   └── hwpx-v1.5.0.zip
 ├── .claude-plugin/               ← 클로드 코드 플러그인 매니페스트
 │   ├── marketplace.json
 │   └── plugin.json
@@ -239,4 +240,4 @@ hwpx-skill/
 
 ---
 
-작성일: 2026-09-06 | 버전: v1.4.2 | 작성: 프랭크 × 에이미 협업
+작성일: 2026-09-17 | 버전: v1.5.0 | 작성: 프랭크 × 에이미 협업
