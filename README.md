@@ -6,9 +6,15 @@
 
 **클로드 코드(Claude Code) · 코워크(Cowork) · 코덱스(Codex CLI)** 세 환경에서 모두 설치할 수 있습니다.
 
-> **버전** v1.5.0 · **최종 수정** 2026-09-17
+> **버전** v1.6.0 · **최종 수정** 2026-10-09
 >
 > **이 저장소 하나로 완결됩니다. 함께 설치해야 하는 다른 스킬은 없습니다.**
+>
+> **v1.6.0 변경점**: **표 서식 규칙 R10·R11을 신설**했습니다. R10은 표 셀 정렬 기준
+> (번호·부호·구분 열 가운데, 금액 오른쪽 + 영문 한 글자 여백, 서술 열 왼쪽)을 정하고
+> `scripts/align_tables.py`로 일괄 적용합니다. R11은 한 쪽을 넘는 표를 '글자처럼 취급' 해제 +
+> 셀 단위 나눔 + 제목 줄 반복으로 다음 쪽에 이어지게 하며 `scripts/split_long_tables.py`로 처리합니다.
+> 동봉 렌더러로 쪽을 그려 눈으로 확인하는 절차(R8)도 추가했습니다.
 >
 > **v1.5.0 변경점**: `.hwp` ↔ `.hwpx` **변환 엔진을 스킬 안에 동봉**했습니다(`skills/hwpx/vendor/rhwp/`).
 > 설치 시 npm·인터넷 연결이 필요 없고, "rhwp 설치 실패" 같은 안내가 나올 여지가 사라졌습니다.
@@ -28,13 +34,13 @@
 
 파일을 주고받을 필요 없이 **아래 링크 하나만 공유**하면 됩니다.
 
-**📥 다운로드: https://github.com/HYEONKOOLEE/hwpx-skill/releases/download/v1.5.0/hwpx-v1.5.0.skill**
+**📥 다운로드: https://github.com/HYEONKOOLEE/hwpx-skill/releases/download/v1.6.0/hwpx-v1.6.0.skill**
 
 > ⚠️ **저장소 초록색 「Code → Download ZIP」 버튼으로 받은 파일(`hwpx-skill-main.zip`)은 스킬로 업로드되지 않습니다.**
 > 저장소 전체가 `hwpx-skill-main/` 폴더 아래 묶여 있어 `SKILL.md`가 루트에 없기 때문입니다.
 > 반드시 위 릴리스 링크의 `.skill`(또는 `dist/`의 `.zip`)을 받으세요. 둘은 내용이 같고 확장자만 다릅니다.
 
-1. 위 링크를 눌러 `hwpx-v1.5.0.skill` 파일을 내려받습니다 (확장자를 바꾸지 마세요)
+1. 위 링크를 눌러 `hwpx-v1.6.0.skill` 파일을 내려받습니다 (확장자를 바꾸지 마세요)
 2. Claude 앱 왼쪽 메뉴 **사용자 지정** → **스킬** 탭 → 오른쪽 위 **추가 → 스킬 업로드**
 3. 내려받은 `.skill` 파일을 선택하면 끝 — **내 것** 탭에 `hwpx`가 나타나고 토글이 켜져 있으면 바로 사용됩니다
 4. 새 대화에서 "이 내용으로 한글 파일 만들어줘"라고 요청하면 자동으로 동작합니다
@@ -128,7 +134,7 @@ chmod +x install.sh
 
 코워크는 폴더 복사가 아니라 **파일 업로드** 방식입니다. 맨 위 **⚡ 가장 빠른 설치**와 같습니다.
 
-1. `dist/hwpx-v1.5.0.skill` 파일을 내려받습니다 ([바로 받기](https://github.com/HYEONKOOLEE/hwpx-skill/releases/download/v1.5.0/hwpx-v1.5.0.skill))
+1. `dist/hwpx-v1.6.0.skill` 파일을 내려받습니다 ([바로 받기](https://github.com/HYEONKOOLEE/hwpx-skill/releases/download/v1.6.0/hwpx-v1.6.0.skill))
 2. Claude 앱 **사용자 지정 → 스킬 → 추가 → 스킬 업로드**에서 파일을 선택합니다
    (대화창에 파일을 올린 뒤 **저장** 버튼을 눌러도 됩니다)
 
@@ -176,13 +182,13 @@ hwpx-skill/
 │   ├── README.md                   스킬 자체 설명서
 │   ├── CHANGELOG.md                스킬 변경 이력
 │   ├── references/                 서식 규격·편집 절차 4종
-│   ├── scripts/                    후처리·검증·변환·익명화 스크립트 6종
+│   ├── scripts/                    후처리·검증·변환·익명화 스크립트 8종
 │   ├── vendor/rhwp/                .hwp↔.hwpx 변환 엔진 동봉 (설치 불필요)
 │   ├── assets/                     공공기관 표준 양식 2종
 │   └── evals/                      동작 검증 테스트 케이스 7종 + 실전 고정 샘플
 ├── dist/                         ← 코워크 업로드용 배포 파일
-│   ├── hwpx-v1.5.0.skill
-│   └── hwpx-v1.5.0.zip
+│   ├── hwpx-v1.6.0.skill
+│   └── hwpx-v1.6.0.zip
 ├── .claude-plugin/               ← 클로드 코드 플러그인 매니페스트
 │   ├── marketplace.json
 │   └── plugin.json
@@ -219,6 +225,8 @@ hwpx-skill/
 | 한글에서 파일이 안 열림 | 재압축 시 `mimetype`이 맨 앞·무압축인지 |
 | 글자가 겹치거나 잘림 | 레이아웃 캐시를 지웠는지 |
 | 표가 삐뚤어짐 | `autofit_table_rows.py`를 돌렸는지 |
+| 긴 표가 통째로 다음 쪽으로 밀리거나 잘림 | `split_long_tables.py`(R11)를 돌렸는지 |
+| 번호·금액 열이 왼쪽으로 붙음 | `align_tables.py`(R10)를 돌렸는지 |
 | 태그 오류·파싱 실패 | `fix_namespaces.py`로 복구 시도 |
 
 > **BOM 주의** — `SKILL.md`를 Windows PowerShell의 `Out-File`이나 `>`로 저장하면 파일 앞에
@@ -240,4 +248,4 @@ hwpx-skill/
 
 ---
 
-작성일: 2026-09-17 | 버전: v1.5.0 | 작성: 프랭크 × 에이미 협업
+작성일: 2026-10-09 | 버전: v1.6.0 | 작성: 프랭크 × 에이미 협업

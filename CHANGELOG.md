@@ -3,6 +3,14 @@
 스킬 자체의 변경 이력은 `skills/hwpx/CHANGELOG.md`를 보세요.
 이 파일은 **저장소 구조·배포 방식**의 변경만 기록합니다.
 
+## v1.6.0 — 2026-10-09
+
+스킬 v1.6.0(표 서식 규칙 R10·R11 · 렌더링 확인)을 반영하고 배포 파일을 빌드했다.
+
+- `skills/hwpx/scripts/align_tables.py`(R10 셀 정렬)·`split_long_tables.py`(R11 쪽 넘김 표) 추가 — 스크립트 8종
+- `dist/hwpx-v1.6.0.skill` / `.zip` 빌드, `install.ps1`·`install.sh`·README의 배포 파일명 갱신
+- `.claude-plugin/plugin.json`·`marketplace.json` 버전 1.6.0
+
 ## v1.5.0 — 2026-09-17
 
 스킬 v1.5.0(`.hwp` 변환 엔진 동봉)을 반영하고 배포 파일을 빌드했다.
